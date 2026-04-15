@@ -5,11 +5,11 @@ import CustomerDashboardShell from "@/components/customer-dashboard-shell";
 import { getCustomerHeaders } from "@/components/customer-api";
 
 const COURIER_OPTIONS = [
-  { value: "pathao", label: "Pathao" },
   { value: "steadfast", label: "Steadfast Courier" },
 ];
 
 const EMPTY_FORM = {
+  id: "",
   courierType: "steadfast",
   apiKey: "",
   secretKey: "",
@@ -17,6 +17,18 @@ const EMPTY_FORM = {
   isActive: true,
   isDefault: false,
 };
+
+function mapSettingToForm(setting) {
+  return {
+    id: setting._id ? String(setting._id) : "",
+    courierType: setting.courierType || "steadfast",
+    apiKey: setting.apiKey || "",
+    secretKey: setting.secretKey || "",
+    baseUrl: setting.baseUrl || "",
+    isActive: Boolean(setting.isActive),
+    isDefault: Boolean(setting.isDefault),
+  };
+}
 
 export default function DashboardCourierSettingsPage() {
   const [settings, setSettings] = useState([]);
@@ -36,7 +48,17 @@ export default function DashboardCourierSettingsPage() {
           setLoading(false);
           return;
         }
-        setSettings(Array.isArray(json?.data) ? json.data : []);
+        const fetchedSettings = Array.isArray(json?.data) ? json.data : [];
+        setSettings(fetchedSettings);
+
+        const selectedSetting =
+          fetchedSettings.find((item) => item.courierType === form.courierType) ||
+          fetchedSettings.find((item) => item.isDefault) ||
+          fetchedSettings[0];
+
+        if (selectedSetting) {
+          setForm(mapSettingToForm(selectedSetting));
+        }
         setLoading(false);
       })
       .catch(() => {
@@ -46,24 +68,20 @@ export default function DashboardCourierSettingsPage() {
   }
 
   useEffect(() => {
-    fetch("/api/courier-settings", { headers: getCustomerHeaders() })
-      .then((response) => response.json().then((json) => ({ response, json })))
-      .then(({ response, json }) => {
-        if (!response.ok) {
-          setError(json?.error || "Failed to load settings");
-          setLoading(false);
-          return;
-        }
-        setSettings(Array.isArray(json?.data) ? json.data : []);
-        setLoading(false);
-      })
-      .catch(() => {
-        setError("Failed to load settings");
-        setLoading(false);
-      });
+    loadSettings();
   }, []);
 
   function handleChange(field, value) {
+    if (field === "courierType") {
+      const existingSetting = settings.find((item) => item.courierType === value);
+      if (existingSetting) {
+        setForm(mapSettingToForm(existingSetting));
+      } else {
+        setForm({ ...EMPTY_FORM, courierType: value });
+      }
+      return;
+    }
+
     setForm((state) => ({ ...state, [field]: value }));
   }
 
@@ -74,7 +92,7 @@ export default function DashboardCourierSettingsPage() {
     setMessage("");
 
     fetch("/api/courier-settings", {
-      method: "PUT",
+      method: "PATCH",
       headers: getCustomerHeaders(),
       body: JSON.stringify(form),
     })

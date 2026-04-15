@@ -1,5 +1,6 @@
 import connectDB from "@/lib/mongodb";
 import Delivery from "@/models/Delivery";
+import "@/models/Order";
 import { assertTenantContext } from "@/lib/auth-context";
 import { assertSubscriptionAccess } from "@/lib/guards";
 import { apiError, apiOk } from "@/lib/http";

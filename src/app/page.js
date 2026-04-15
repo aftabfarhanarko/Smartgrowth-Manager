@@ -8,23 +8,12 @@ export default function Home() {
   const [loadingPackages, setLoadingPackages] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [createdCompanyId, setCreatedCompanyId] = useState("");
   const [companySubmitting, setCompanySubmitting] = useState(false);
-  const [userSubmitting, setUserSubmitting] = useState(false);
   const [companyForm, setCompanyForm] = useState({
     companyName: "",
-    slug: "",
     companyEmail: "",
-    ownerName: "",
-    ownerEmail: "",
+    phone: "",
     password: "",
-    billingType: "monthly",
-  });
-  const [userForm, setUserForm] = useState({
-    name: "",
-    email: "",
-    password: "",
-    role: "staff",
   });
 
   useEffect(() => {
@@ -32,13 +21,10 @@ export default function Home() {
       const res = await fetch("/api/packages");
       const json = await res.json();
       if (!res.ok) {
-        setError(json?.error || "Package load failed");
+        setError(json?.message || "Package load failed");
       } else {
-        const list = json?.data || [];
+        const list = json?.packages || [];
         setPackages(list);
-        if (list.length > 0) {
-          setSelectedPackageId(list[0]._id);
-        }
       }
       setLoadingPackages(false);
     }
@@ -63,38 +49,15 @@ export default function Home() {
     if (!res.ok) {
       setError(json?.error || "Company registration failed");
     } else {
-      setCreatedCompanyId(json?.data?.company?._id || "");
-      setSuccess("Company registration successful. Owner user created.");
+      setSuccess("Company registration successful.");
+      setCompanyForm({
+        companyName: "",
+        companyEmail: "",
+        phone: "",
+        password: "",
+      });
     }
     setCompanySubmitting(false);
-  }
-
-  async function handleCreateUser(event) {
-    event.preventDefault();
-    if (!createdCompanyId) {
-      setError("First register a company");
-      return;
-    }
-    setError("");
-    setSuccess("");
-    setUserSubmitting(true);
-
-    const res = await fetch("/api/users", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-company-id": createdCompanyId,
-      },
-      body: JSON.stringify(userForm),
-    });
-    const json = await res.json();
-    if (!res.ok) {
-      setError(json?.error || "User create failed");
-    } else {
-      setSuccess("User created successfully.");
-      setUserForm({ name: "", email: "", password: "", role: "staff" });
-    }
-    setUserSubmitting(false);
   }
 
   return (
@@ -118,163 +81,99 @@ export default function Home() {
           {!loadingPackages && packages.length === 0 && (
             <p className="mt-3 text-sm text-zinc-500">No package found.</p>
           )}
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {packages.map((pkg) => (
               <button
                 key={pkg._id}
-                className={`rounded border p-4 text-left ${
+                type="button"
+                className={`rounded-xl border p-4 text-left shadow-sm transition ${
                   selectedPackageId === pkg._id
                     ? "border-zinc-900 bg-zinc-900 text-white"
-                    : "border-zinc-200 bg-white"
+                    : "border-zinc-200 bg-white hover:border-zinc-400"
                 }`}
-                onClick={() => setSelectedPackageId(pkg._id)}
+                onClick={() => {
+                  setSelectedPackageId(pkg._id);
+                  setSuccess("");
+                }}
               >
-                <p className="font-semibold">{pkg.name}</p>
-                <p className="text-sm">
+                <p className="text-lg font-semibold">{pkg.name}</p>
+                <p className="mt-2 text-sm">
                   Monthly: {pkg.priceMonthly} | Yearly: {pkg.priceYearly}
                 </p>
-                <p className="mt-2 text-xs">Users limit: {pkg?.limits?.users}</p>
+                <div className="mt-3 space-y-1 text-xs">
+                  <p>Users: {pkg?.limits?.users ?? 0}</p>
+                  <p>Orders/mo: {pkg?.limits?.orders_per_month ?? 0}</p>
+                  <p>Courier/mo: {pkg?.limits?.courier_orders_per_month ?? 0}</p>
+                  <p>Emails/mo: {pkg?.limits?.emails_per_month ?? 0}</p>
+                  <p>Campaigns/mo: {pkg?.limits?.campaigns_per_month ?? 0}</p>
+                </div>
+                <p className="mt-3 text-xs">
+                  Features:{" "}
+                  {Object.entries(pkg?.features || {})
+                    .filter(([, enabled]) => enabled)
+                    .map(([feature]) => feature.replaceAll("_", " "))
+                    .join(", ") || "None"}
+                </p>
               </button>
             ))}
           </div>
         </section>
 
-        <section className="grid gap-6 md:grid-cols-2">
-          <form className="rounded border bg-white p-5" onSubmit={handleCompanyRegister}>
-            <h2 className="text-xl font-semibold">Company Registration</h2>
-            <div className="mt-4 grid gap-3">
-              <input
-                className="rounded border p-2"
-                placeholder="Company Name"
-                value={companyForm.companyName}
-                onChange={(e) =>
-                  setCompanyForm((state) => ({ ...state, companyName: e.target.value }))
-                }
-                required
-              />
-              <input
-                className="rounded border p-2"
-                placeholder="Company Slug"
-                value={companyForm.slug}
-                onChange={(e) =>
-                  setCompanyForm((state) => ({ ...state, slug: e.target.value }))
-                }
-                required
-              />
-              <input
-                className="rounded border p-2"
-                placeholder="Company Email"
-                type="email"
-                value={companyForm.companyEmail}
-                onChange={(e) =>
-                  setCompanyForm((state) => ({ ...state, companyEmail: e.target.value }))
-                }
-                required
-              />
-              <input
-                className="rounded border p-2"
-                placeholder="Owner Name"
-                value={companyForm.ownerName}
-                onChange={(e) =>
-                  setCompanyForm((state) => ({ ...state, ownerName: e.target.value }))
-                }
-                required
-              />
-              <input
-                className="rounded border p-2"
-                placeholder="Owner Email"
-                type="email"
-                value={companyForm.ownerEmail}
-                onChange={(e) =>
-                  setCompanyForm((state) => ({ ...state, ownerEmail: e.target.value }))
-                }
-                required
-              />
-              <input
-                className="rounded border p-2"
-                placeholder="Owner Password"
-                type="password"
-                value={companyForm.password}
-                onChange={(e) =>
-                  setCompanyForm((state) => ({ ...state, password: e.target.value }))
-                }
-                required
-              />
-              <select
-                className="rounded border p-2"
-                value={companyForm.billingType}
-                onChange={(e) =>
-                  setCompanyForm((state) => ({ ...state, billingType: e.target.value }))
-                }
-              >
-                <option value="monthly">Monthly</option>
-                <option value="yearly">Yearly</option>
-              </select>
-              <button
-                type="submit"
-                className="rounded bg-zinc-900 px-4 py-2 text-white disabled:opacity-60"
-                disabled={!selectedPackageId || companySubmitting}
-              >
-                {companySubmitting ? "Registering..." : "Register Company"}
-              </button>
-            </div>
-          </form>
-
-          <form className="rounded border bg-white p-5" onSubmit={handleCreateUser}>
-            <h2 className="text-xl font-semibold">Create User</h2>
-            <p className="mt-1 text-sm text-zinc-500">
-              Company ID: {createdCompanyId || "Register company first"}
-            </p>
-            <div className="mt-4 grid gap-3">
-              <input
-                className="rounded border p-2"
-                placeholder="User Name"
-                value={userForm.name}
-                onChange={(e) =>
-                  setUserForm((state) => ({ ...state, name: e.target.value }))
-                }
-                required
-              />
-              <input
-                className="rounded border p-2"
-                placeholder="User Email"
-                type="email"
-                value={userForm.email}
-                onChange={(e) =>
-                  setUserForm((state) => ({ ...state, email: e.target.value }))
-                }
-                required
-              />
-              <input
-                className="rounded border p-2"
-                placeholder="Password"
-                type="password"
-                value={userForm.password}
-                onChange={(e) =>
-                  setUserForm((state) => ({ ...state, password: e.target.value }))
-                }
-                required
-              />
-              <select
-                className="rounded border p-2"
-                value={userForm.role}
-                onChange={(e) =>
-                  setUserForm((state) => ({ ...state, role: e.target.value }))
-                }
-              >
-                <option value="admin">Admin</option>
-                <option value="staff">Staff</option>
-              </select>
-              <button
-                type="submit"
-                className="rounded bg-zinc-900 px-4 py-2 text-white disabled:opacity-60"
-                disabled={!createdCompanyId || userSubmitting}
-              >
-                {userSubmitting ? "Creating..." : "Create User"}
-              </button>
-            </div>
-          </form>
-        </section>
+        {selectedPackageId && (
+          <section>
+            <form className="rounded border bg-white p-5" onSubmit={handleCompanyRegister}>
+              <h2 className="text-xl font-semibold">Company Registration</h2>
+              <p className="mt-1 text-sm text-zinc-500">
+                Selected package ready. Now create your company.
+              </p>
+              <div className="mt-4 grid gap-3">
+                <input
+                  className="rounded border p-2"
+                  placeholder="Company Name"
+                  value={companyForm.companyName}
+                  onChange={(e) =>
+                    setCompanyForm((state) => ({ ...state, companyName: e.target.value }))
+                  }
+                  required
+                />
+                <input
+                  className="rounded border p-2"
+                  placeholder="Gmail"
+                  type="email"
+                  value={companyForm.companyEmail}
+                  onChange={(e) =>
+                    setCompanyForm((state) => ({ ...state, companyEmail: e.target.value }))
+                  }
+                  required
+                />
+                <input
+                  className="rounded border p-2"
+                  placeholder="Password"
+                  type="password"
+                  value={companyForm.password}
+                  onChange={(e) =>
+                    setCompanyForm((state) => ({ ...state, password: e.target.value }))
+                  }
+                  required
+                />
+                <input
+                  className="rounded border p-2"
+                  placeholder="Phone Number"
+                  value={companyForm.phone}
+                  onChange={(e) => setCompanyForm((state) => ({ ...state, phone: e.target.value }))}
+                  required
+                />
+                <button
+                  type="submit"
+                  className="rounded bg-zinc-900 px-4 py-2 text-white disabled:opacity-60"
+                  disabled={companySubmitting}
+                >
+                  {companySubmitting ? "Registering..." : "Register Company"}
+                </button>
+              </div>
+            </form>
+          </section>
+        )}
       </div>
     </main>
   );

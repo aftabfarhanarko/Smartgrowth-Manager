@@ -9,7 +9,7 @@ export const PACKAGE_FEATURES = [
   "wp_promotion",
 ];
 
-export const COURIER_TYPES = ["steadfast", "pathao"];
+export const COURIER_TYPES = ["steadfast"];
 
 export const DELIVERY_STATUSES = ["pending", "sent", "failed", "cancelled"];
 

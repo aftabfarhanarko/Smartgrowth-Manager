@@ -12,6 +12,7 @@ export default function DashboardDeliveriesPage() {
   const [selectedDeliveryId, setSelectedDeliveryId] = useState("");
   const [selectedCourierType, setSelectedCourierType] = useState("");
   const [sending, setSending] = useState(false);
+  const [trackingDeliveryId, setTrackingDeliveryId] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -138,6 +139,56 @@ export default function DashboardDeliveriesPage() {
       });
   }
 
+  function extractTrackingStatus(trackingPayload) {
+    return (
+      trackingPayload?.delivery_status ||
+      trackingPayload?.status ||
+      trackingPayload?.consignment?.status ||
+      trackingPayload?.data?.status ||
+      trackingPayload?.current_status ||
+      null
+    );
+  }
+
+  function trackDelivery(deliveryId) {
+    setTrackingDeliveryId(deliveryId);
+    setError("");
+    setMessage("");
+
+    fetch(`/api/delivery/track/${deliveryId}`, {
+      method: "POST",
+      headers: getCustomerHeaders(),
+    })
+      .then((response) => response.json().then((json) => ({ response, json })))
+      .then(({ response, json }) => {
+        if (!response.ok) {
+          setError(json?.error || "Failed to fetch tracking");
+          setTrackingDeliveryId("");
+          return;
+        }
+
+        const nextTrackingId = json?.data?.trackingId;
+        if (nextTrackingId) {
+          setDeliveries((state) =>
+            state.map((delivery) =>
+              delivery._id === deliveryId ? { ...delivery, trackingId: nextTrackingId } : delivery
+            )
+          );
+        }
+
+        const statusText = extractTrackingStatus(json?.data?.tracking);
+        const messageText = statusText
+          ? `Tracking status: ${statusText}`
+          : "Tracking data fetched successfully.";
+        setMessage(messageText);
+        setTrackingDeliveryId("");
+      })
+      .catch(() => {
+        setError("Failed to fetch tracking");
+        setTrackingDeliveryId("");
+      });
+  }
+
   return (
     <CustomerDashboardShell title="Deliveries">
       {message && <p className="mb-3 rounded bg-emerald-50 p-2 text-sm text-emerald-700">{message}</p>}
@@ -168,17 +219,32 @@ export default function DashboardDeliveriesPage() {
                   <td className="border p-2 capitalize">{delivery.status}</td>
                   <td className="border p-2">{delivery.trackingId || "-"}</td>
                   <td className="border p-2">
-                    {delivery.status === "pending" ? (
-                      <button
-                        type="button"
-                        onClick={() => openSendModal(delivery._id)}
-                        className="rounded bg-zinc-900 px-3 py-1 text-xs text-white"
-                      >
-                        Send to Courier
-                      </button>
-                    ) : (
-                      <span className="text-xs text-zinc-500">No action</span>
-                    )}
+                    <div className="flex flex-wrap gap-2">
+                      {["pending", "failed"].includes(delivery.status) ? (
+                        <button
+                          type="button"
+                          onClick={() => openSendModal(delivery._id)}
+                          className="rounded bg-zinc-900 px-3 py-1 text-xs text-white"
+                        >
+                          Send to Courier
+                        </button>
+                      ) : null}
+
+                      {delivery.trackingId ? (
+                        <button
+                          type="button"
+                          onClick={() => trackDelivery(delivery._id)}
+                          disabled={trackingDeliveryId === delivery._id}
+                          className="rounded border border-zinc-300 px-3 py-1 text-xs text-zinc-700 disabled:opacity-60"
+                        >
+                          {trackingDeliveryId === delivery._id ? "Tracking..." : "Track"}
+                        </button>
+                      ) : null}
+
+                      {!["pending", "failed"].includes(delivery.status) && !delivery.trackingId ? (
+                        <span className="text-xs text-zinc-500">No action</span>
+                      ) : null}
+                    </div>
                   </td>
                 </tr>
               ))}
