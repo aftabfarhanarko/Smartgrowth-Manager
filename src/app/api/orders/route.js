@@ -6,7 +6,6 @@ import { assertSubscriptionAccess } from "@/lib/guards";
 import { incrementUsage } from "@/lib/usage";
 import { apiError, apiOk } from "@/lib/http";
 
-<<<<<<< HEAD
 const FIELD_CANDIDATES = {
   orderNumber: ["ordernumber", "order_no", "orderno", "orderid", "invoice", "invoiceno", "id"],
   customerName: ["customername", "name", "recipientname", "customer", "username", "user"],
@@ -141,8 +140,6 @@ async function createOrderWithAutoNumber({ companyId, row, orderItems = [] }) {
   throw new Error("Failed to generate unique order number");
 }
 
-=======
->>>>>>> 790594a (update)
 export async function GET(request) {
   const auth = assertTenantContext(request);
   if (auth.error) return apiError(auth.error, auth.status);
@@ -165,7 +162,6 @@ export async function POST(request) {
   if (auth.error) return apiError(auth.error, auth.status);
 
   const body = await request.json();
-<<<<<<< HEAD
   if (body?.orderItems && !Array.isArray(body.orderItems)) {
     return apiError("orderItems must be an array", 400);
   }
@@ -255,17 +251,6 @@ export async function POST(request) {
           price: Math.max(0, Number(item.price || 0)),
         }))
     : [];
-=======
-  const required = [
-    "orderNumber",
-    "customerName",
-    "customerPhone",
-    "customerAddress",
-    "codAmount",
-  ];
-  const missingField = required.find((field) => !body?.[field] && body?.[field] !== 0);
-  if (missingField) return apiError(`Missing field '${missingField}'`, 400);
->>>>>>> 790594a (update)
 
   await connectDB();
   const access = await assertSubscriptionAccess({
@@ -276,21 +261,10 @@ export async function POST(request) {
   });
   if (access.error) return apiError(access.error, access.status, access.meta);
 
-<<<<<<< HEAD
   const order = await createOrderWithAutoNumber({
     companyId: auth.context.companyId,
     row: normalizedSingle,
     orderItems,
-=======
-  const order = await Order.create({
-    companyId: auth.context.companyId,
-    orderNumber: body.orderNumber,
-    customerName: body.customerName,
-    customerPhone: body.customerPhone,
-    customerAddress: body.customerAddress,
-    codAmount: Number(body.codAmount),
-    notes: body.notes || "",
->>>>>>> 790594a (update)
   });
 
   await Delivery.create({
