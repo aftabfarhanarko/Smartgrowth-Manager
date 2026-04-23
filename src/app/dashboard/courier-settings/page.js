@@ -29,10 +29,6 @@ function mapSettingToForm(setting) {
     isDefault: Boolean(setting.isDefault),
   };
 }
-<<<<<<< HEAD
-=======
-
->>>>>>> master
 export default function DashboardCourierSettingsPage() {
   const [settings, setSettings] = useState([]);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -84,10 +80,6 @@ export default function DashboardCourierSettingsPage() {
       }
       return;
     }
-<<<<<<< HEAD
-=======
-
->>>>>>> master
     setForm((state) => ({ ...state, [field]: value }));
   }
 
