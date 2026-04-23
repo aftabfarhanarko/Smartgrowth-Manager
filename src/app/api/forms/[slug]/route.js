@@ -7,7 +7,10 @@ export async function GET(_request, { params }) {
   if (!slug) return apiError("Form slug is required", 400);
 
   await connectDB();
-  const campaign = await Campaign.findOne({ slug, status: "active" })
+  const campaign = await Campaign.findOne({
+    status: "active",
+    $or: [{ publicToken: slug }, { slug }],
+  })
     .select("name description slug fields status design redirectUrl")
     .lean();
   if (!campaign) return apiError("Form not found", 404);

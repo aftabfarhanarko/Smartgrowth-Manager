@@ -83,5 +83,3 @@ export async function PATCH(request) {
 
   return apiOk(setting);
 }
-
-export const PUT = PATCH;

@@ -35,6 +35,10 @@ async function makeUniqueSlug(companyName) {
 
   return slug;
 }
+<<<<<<< HEAD
+=======
+
+>>>>>>> master
 export async function POST(request) {
   await connectDB();
   const body = await request.json();

@@ -39,6 +39,7 @@ export async function GET(request) {
       courierOrders: usage?.courierOrders ?? 0,
       emails: usage?.emails ?? 0,
       campaigns: usage?.campaigns ?? 0,
+      wpPromotions: usage?.wpPromotions ?? 0,
     },
     limits: {
       users: limits?.users ?? 0,
@@ -46,6 +47,7 @@ export async function GET(request) {
       courier_orders_per_month: limits?.courier_orders_per_month ?? 0,
       emails_per_month: limits?.emails_per_month ?? 0,
       campaigns_per_month: limits?.campaigns_per_month ?? 0,
+      wp_promotions_per_month: limits?.wp_promotions_per_month ?? 0,
     },
   });
 }

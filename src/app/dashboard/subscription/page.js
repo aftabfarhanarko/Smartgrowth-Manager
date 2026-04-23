@@ -77,9 +77,13 @@ export default function DashboardSubscriptionPage() {
     setSubmitting(false);
   }
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 
 >>>>>>> 7a7754f (add new module)
+=======
+
+>>>>>>> master
   return (
     <CustomerDashboardShell title="Subscription">
       {loading ? (

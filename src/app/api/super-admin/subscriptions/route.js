@@ -1,5 +1,8 @@
 import connectDB from "@/lib/mongodb";
 import Subscription from "@/models/Subscription";
+// Ensure populate("companyId") / populate("packageId") model refs are registered.
+import "@/models/Company";
+import "@/models/Package";
 import { apiError, apiOk } from "@/lib/http";
 import { isSuperAdminRequest } from "@/lib/super-admin";
 

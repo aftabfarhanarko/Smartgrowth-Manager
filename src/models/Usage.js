@@ -14,6 +14,7 @@ const usageSchema = new mongoose.Schema(
     courierOrders: { type: Number, default: 0, min: 0 },
     emails: { type: Number, default: 0, min: 0 },
     campaigns: { type: Number, default: 0, min: 0 },
+    wpPromotions: { type: Number, default: 0, min: 0 },
   },
   { timestamps: true }
 );

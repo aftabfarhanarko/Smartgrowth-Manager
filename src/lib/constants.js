@@ -19,6 +19,10 @@ export const USAGE_KEYS = {
   courierOrders: "courierOrders",
   emails: "emails",
   campaigns: "campaigns",
+<<<<<<< HEAD
+=======
+  wpPromotions: "wpPromotions",
+>>>>>>> master
 };
 
 export const LIMIT_TO_USAGE_KEY = {
@@ -27,4 +31,8 @@ export const LIMIT_TO_USAGE_KEY = {
   courier_orders_per_month: USAGE_KEYS.courierOrders,
   emails_per_month: USAGE_KEYS.emails,
   campaigns_per_month: USAGE_KEYS.campaigns,
+<<<<<<< HEAD
+=======
+  wp_promotions_per_month: USAGE_KEYS.wpPromotions,
+>>>>>>> master
 };

@@ -20,6 +20,7 @@ const packageSchema = new mongoose.Schema(
       courier_orders_per_month: { type: Number, default: 100, min: 0 },
       emails_per_month: { type: Number, default: 0, min: 0 },
       campaigns_per_month: { type: Number, default: 0, min: 0 },
+      wp_promotions_per_month: { type: Number, default: 0, min: 0 },
     },
     isActive: { type: Boolean, default: true },
   },

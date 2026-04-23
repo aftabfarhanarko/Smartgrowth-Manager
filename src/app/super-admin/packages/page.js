@@ -16,6 +16,7 @@ function getEmptyForm() {
     courierOrdersPerMonth: "",
     emailsPerMonth: "",
     campaignsPerMonth: "",
+    wpPromotionsPerMonth: "",
     features: PACKAGE_FEATURES.reduce((acc, feature) => {
       acc[feature] = false;
       return acc;
@@ -73,6 +74,7 @@ export default function SuperAdminPackagesPage() {
       courierOrdersPerMonth: String(pkg?.limits?.courier_orders_per_month ?? ""),
       emailsPerMonth: String(pkg?.limits?.emails_per_month ?? ""),
       campaignsPerMonth: String(pkg?.limits?.campaigns_per_month ?? ""),
+      wpPromotionsPerMonth: String(pkg?.limits?.wp_promotions_per_month ?? ""),
       features: PACKAGE_FEATURES.reduce((acc, feature) => {
         acc[feature] = Boolean(pkg?.features?.[feature]);
         return acc;
@@ -113,6 +115,7 @@ export default function SuperAdminPackagesPage() {
           courier_orders_per_month: Number(form.courierOrdersPerMonth || 0),
           emails_per_month: Number(form.emailsPerMonth || 0),
           campaigns_per_month: Number(form.campaignsPerMonth || 0),
+          wp_promotions_per_month: Number(form.wpPromotionsPerMonth || 0),
         },
       }),
     });
@@ -211,6 +214,16 @@ export default function SuperAdminPackagesPage() {
               setForm((state) => ({ ...state, campaignsPerMonth: event.target.value }))
             }
           />
+          <input
+            className="rounded border p-2"
+            placeholder="WP promotions/month limit"
+            type="number"
+            min="0"
+            value={form.wpPromotionsPerMonth}
+            onChange={(event) =>
+              setForm((state) => ({ ...state, wpPromotionsPerMonth: event.target.value }))
+            }
+          />
         </div>
         <div className="grid gap-2">
           <p className="text-sm font-medium text-zinc-700">Feature access</p>
@@ -284,6 +297,7 @@ export default function SuperAdminPackagesPage() {
                   <th className="border p-2">Courier/Month</th>
                   <th className="border p-2">Emails/Month</th>
                   <th className="border p-2">Campaigns/Month</th>
+                  <th className="border p-2">WP Promotions/Month</th>
                   <th className="border p-2">Features</th>
                   <th className="border p-2">Action</th>
                 </tr>
@@ -299,6 +313,7 @@ export default function SuperAdminPackagesPage() {
                     <td className="border p-2">{pkg?.limits?.courier_orders_per_month ?? "-"}</td>
                     <td className="border p-2">{pkg?.limits?.emails_per_month ?? "-"}</td>
                     <td className="border p-2">{pkg?.limits?.campaigns_per_month ?? "-"}</td>
+                    <td className="border p-2">{pkg?.limits?.wp_promotions_per_month ?? "-"}</td>
                     <td className="border p-2">
                       {Object.entries(pkg?.features || {})
                         .filter(([, enabled]) => enabled)

@@ -10,6 +10,7 @@ const USAGE_FIELDS = [
   { key: "courierOrders", label: "Courier Orders", limitKey: "courier_orders_per_month" },
   { key: "emails", label: "Emails", limitKey: "emails_per_month" },
   { key: "campaigns", label: "Campaigns", limitKey: "campaigns_per_month" },
+  { key: "wpPromotions", label: "WP Promotions", limitKey: "wp_promotions_per_month" },
 ];
 
 export default function DashboardUsagePage() {

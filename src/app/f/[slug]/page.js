@@ -102,7 +102,7 @@ function FieldRenderer({ field, value, onChange, styles = {} }) {
 
 export default function PublicFormPage() {
   const params = useParams();
-  const slug = typeof params?.slug === "string" ? params.slug : "";
+  const slug = typeof params?.slug === "string" ? decodeURIComponent(params.slug) : "";
 
   const [campaign, setCampaign] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -255,9 +255,11 @@ export default function PublicFormPage() {
                   {campaign?.name}
                 </h1>
                 {campaign?.description ? (
-                  <p className="mt-2 text-base" style={{ color: descriptionColor }}>
-                    {campaign.description}
-                  </p>
+                  <div
+                    className="mt-2 text-base"
+                    style={{ color: descriptionColor }}
+                    dangerouslySetInnerHTML={{ __html: campaign.description }}
+                  />
                 ) : null}
               </div>
 

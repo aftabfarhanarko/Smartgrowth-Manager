@@ -4,6 +4,7 @@ import { assertTenantContext } from "@/lib/auth-context";
 import { assertSubscriptionAccess } from "@/lib/guards";
 import { incrementUsage } from "@/lib/usage";
 import { apiError, apiOk } from "@/lib/http";
+import { randomBytes } from "crypto";
 
 function normalizeFields(fields = []) {
   return fields
@@ -57,6 +58,20 @@ async function makeUniqueCampaignSlug(rawSource) {
   }
 
   return slug;
+}
+
+async function makeUniquePublicToken() {
+  let token = "";
+  let attempts = 0;
+
+  while (attempts < 10) {
+    token = randomBytes(9).toString("base64url");
+    const exists = await Campaign.exists({ publicToken: token });
+    if (!exists) return token;
+    attempts += 1;
+  }
+
+  return `${Date.now().toString(36)}${randomBytes(4).toString("hex")}`;
 }
 
 function sanitizeHexColor(value, fallback) {
@@ -141,6 +156,7 @@ export async function POST(request) {
   if (access.error) return apiError(access.error, access.status, access.meta);
 
   const slug = await makeUniqueCampaignSlug(name);
+  const publicToken = await makeUniquePublicToken();
   const campaign = await Campaign.create({
     companyId: auth.context.companyId,
     name,
@@ -148,6 +164,7 @@ export async function POST(request) {
     status,
     fields,
     slug,
+    publicToken,
     redirectUrl,
     design,
   });

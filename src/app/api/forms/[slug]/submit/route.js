@@ -69,7 +69,10 @@ export async function POST(request, { params }) {
   const body = await request.json();
   await connectDB();
 
-  const campaign = await Campaign.findOne({ slug, status: "active" });
+  const campaign = await Campaign.findOne({
+    status: "active",
+    $or: [{ publicToken: slug }, { slug }],
+  });
   if (!campaign) return apiError("Form not found", 404);
 
   const access = await assertSubscriptionAccess({

@@ -1,4 +1,11 @@
+<<<<<<< HEAD
 import { NextResponse } from "next/server";
+=======
+import mongoose from "mongoose";
+import { NextResponse } from "next/server";
+import connectDB from "@/lib/mongodb";
+import Company from "@/models/Company";
+>>>>>>> master
 import { getSessionFromRequest } from "@/lib/session";
 
 export async function GET(request) {
@@ -7,6 +14,15 @@ export async function GET(request) {
     return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   }
 
+<<<<<<< HEAD
+=======
+  let company = null;
+  if (mongoose.Types.ObjectId.isValid(session.companyId)) {
+    await connectDB();
+    company = await Company.findById(session.companyId).select("name slug").lean();
+  }
+
+>>>>>>> master
   return NextResponse.json({
     success: true,
     data: {
@@ -15,6 +31,10 @@ export async function GET(request) {
       role: session.userRole,
       name: session.name,
       email: session.email,
+<<<<<<< HEAD
+=======
+      company: company ? { name: company.name, slug: company.slug } : null,
+>>>>>>> master
     },
   });
 }
