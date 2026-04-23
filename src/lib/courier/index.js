@@ -4,7 +4,6 @@ export async function sendCourierOrder({ courierType, config, delivery }) {
   if (courierType === "steadfast") {
     return sendToSteadfast({ config, delivery });
   }
-  }
 
   throw new Error(`Unsupported courier '${courierType}'`);
 }

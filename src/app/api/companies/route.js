@@ -5,7 +5,6 @@ import User from "@/models/User";
 import Package from "@/models/Package";
 import Subscription from "@/models/Subscription";
 import Usage from "@/models/Usage";
-import { BILLING_TYPES } from "@/lib/constants";
 import { apiError, apiOk } from "@/lib/http";
 import { getCurrentUsageMonth } from "@/lib/usage";
 
@@ -42,14 +41,10 @@ export async function POST(request) {
 
   const { companyName, companyEmail, phone, password } = body;
   const packageId = body.packageId;
-  const billingType = body.billingType || "monthly";
+  const billingType = "monthly";
 
   if (!companyName || !companyEmail || !phone || !password || !packageId) {
     return apiError("Missing required fields", 400);
-  }
-
-  if (!BILLING_TYPES.includes(billingType)) {
-    return apiError("Invalid billing type", 400);
   }
 
   const packageDoc = await Package.findById(packageId);

@@ -54,6 +54,10 @@ export async function POST(request) {
       { status: 403 }
     );
   }
+<<<<<<< HEAD
+=======
+
+>>>>>>> 7a7754f (add new module)
   const sessionToken = createSessionToken({
     userId: String(user._id),
     companyId: String(user.companyId),

@@ -76,6 +76,10 @@ export default function DashboardSubscriptionPage() {
     setMessage(json?.data?.message || "Upgrade request submitted.");
     setSubmitting(false);
   }
+<<<<<<< HEAD
+=======
+
+>>>>>>> 7a7754f (add new module)
   return (
     <CustomerDashboardShell title="Subscription">
       {loading ? (
