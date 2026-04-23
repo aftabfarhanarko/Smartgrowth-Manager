@@ -1,15 +1,10 @@
 export async function sendToSteadfast({ config, delivery }) {
   const endpoint = `${config.baseUrl.replace(/\/$/, "")}/create_order`;
-<<<<<<< HEAD
   const fallbackInvoice = `DLV-${String(delivery._id || "").slice(-8) || Date.now()}`;
   const invoice = delivery.invoice || delivery.orderCode || fallbackInvoice;
 
   const payload = {
     invoice,
-=======
-
-  const payload = {
->>>>>>> 790594a (update)
     recipient_name: delivery.customerName,
     recipient_phone: delivery.customerPhone,
     recipient_address: delivery.customerAddress,
@@ -20,18 +15,12 @@ export async function sendToSteadfast({ config, delivery }) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-<<<<<<< HEAD
       "Api-Key": config.apiKey,
       "Secret-Key": config.secretKey,
-=======
-      "X-API-KEY": config.apiKey,
-      "X-SECRET-KEY": config.secretKey,
->>>>>>> 790594a (update)
     },
     body: JSON.stringify(payload),
   });
 
-<<<<<<< HEAD
   const responseText = await response.text();
   let body = null;
   try {
@@ -39,15 +28,10 @@ export async function sendToSteadfast({ config, delivery }) {
   } catch {
     body = { message: responseText || "Invalid JSON response from Steadfast" };
   }
-
-=======
-  const body = await response.json();
->>>>>>> 790594a (update)
   if (!response.ok) {
     throw new Error(body?.message || "Steadfast order create failed");
   }
 
-<<<<<<< HEAD
   const trackingId = extractSteadfastTrackingCode(body);
 
   return { trackingId, raw: body };
@@ -141,10 +125,3 @@ export async function trackSteadfastOrder({ config, delivery }) {
 
   throw new Error(lastError || "Steadfast tracking failed");
 }
-=======
-  const trackingId =
-    body?.consignment_id || body?.data?.consignment_id || body?.tracking_id;
-
-  return { trackingId, raw: body };
-}
->>>>>>> 790594a (update)

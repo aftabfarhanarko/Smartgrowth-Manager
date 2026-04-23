@@ -5,10 +5,7 @@ import User from "@/models/User";
 import Package from "@/models/Package";
 import Subscription from "@/models/Subscription";
 import Usage from "@/models/Usage";
-<<<<<<< HEAD
-=======
 import { BILLING_TYPES } from "@/lib/constants";
->>>>>>> 790594a (update)
 import { apiError, apiOk } from "@/lib/http";
 import { getCurrentUsageMonth } from "@/lib/usage";
 
@@ -17,7 +14,6 @@ function getExpiryDate(startDate, billingType) {
   return new Date(startDate.getTime() + days * 24 * 60 * 60 * 1000);
 }
 
-<<<<<<< HEAD
 function makeBaseSlug(name = "") {
   return name
     .toLowerCase()
@@ -40,36 +36,15 @@ async function makeUniqueSlug(companyName) {
 
   return slug;
 }
-
-=======
->>>>>>> 790594a (update)
 export async function POST(request) {
   await connectDB();
   const body = await request.json();
 
-<<<<<<< HEAD
   const { companyName, companyEmail, phone, password } = body;
-  const packageId = body.packageId;
-  const billingType = "monthly";
-
-  if (!companyName || !companyEmail || !phone || !password || !packageId) {
-    return apiError("Missing required fields", 400);
-  }
-
-=======
-  const { companyName, slug, companyEmail, ownerName, ownerEmail, password } = body;
   const packageId = body.packageId;
   const billingType = body.billingType || "monthly";
 
-  if (
-    !companyName ||
-    !slug ||
-    !companyEmail ||
-    !ownerName ||
-    !ownerEmail ||
-    !password ||
-    !packageId
-  ) {
+  if (!companyName || !companyEmail || !phone || !password || !packageId) {
     return apiError("Missing required fields", 400);
   }
 
@@ -77,25 +52,17 @@ export async function POST(request) {
     return apiError("Invalid billing type", 400);
   }
 
->>>>>>> 790594a (update)
   const packageDoc = await Package.findById(packageId);
   if (!packageDoc || !packageDoc.isActive) {
     return apiError("Package not found", 404);
   }
 
-<<<<<<< HEAD
   const normalizedEmail = companyEmail.toLowerCase();
   const companyExists = await Company.findOne({ email: normalizedEmail });
-=======
-  const companyExists = await Company.findOne({
-    $or: [{ slug: slug.toLowerCase() }, { email: companyEmail.toLowerCase() }],
-  });
->>>>>>> 790594a (update)
   if (companyExists) {
     return apiError("Company already exists", 409);
   }
 
-<<<<<<< HEAD
   const slug = await makeUniqueSlug(companyName);
   const company = await Company.create({
     name: companyName,
@@ -103,24 +70,13 @@ export async function POST(request) {
     email: normalizedEmail,
     phone,
     ownerEmail: normalizedEmail,
-=======
-  const company = await Company.create({
-    name: companyName,
-    slug,
-    email: companyEmail,
->>>>>>> 790594a (update)
   });
 
   const passwordHash = await bcrypt.hash(password, 10);
   const owner = await User.create({
     companyId: company._id,
-<<<<<<< HEAD
     name: companyName,
     email: normalizedEmail,
-=======
-    name: ownerName,
-    email: ownerEmail,
->>>>>>> 790594a (update)
     passwordHash,
     role: "owner",
   });

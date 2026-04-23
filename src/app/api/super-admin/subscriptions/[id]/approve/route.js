@@ -25,7 +25,6 @@ export async function POST(request, { params }) {
     return apiError("Subscription already active", 400);
   }
 
-<<<<<<< HEAD
   await Subscription.updateMany(
     {
       companyId: subscription.companyId,
@@ -34,9 +33,6 @@ export async function POST(request, { params }) {
     },
     { status: "cancelled" }
   );
-
-=======
->>>>>>> 790594a (update)
   const startsAt = new Date();
   subscription.status = "active";
   subscription.startsAt = startsAt;

@@ -6,7 +6,6 @@ import { getCustomerHeaders } from "@/components/customer-api";
 
 export default function DashboardSubscriptionPage() {
   const [subscription, setSubscription] = useState(null);
-<<<<<<< HEAD
   const [packages, setPackages] = useState([]);
   const [selectedPackageId, setSelectedPackageId] = useState("");
   const [loading, setLoading] = useState(true);
@@ -44,30 +43,10 @@ export default function DashboardSubscriptionPage() {
       })
       .catch(() => {
         setError("Failed to load subscription info");
-=======
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    fetch("/api/subscription/me", { headers: getCustomerHeaders() })
-      .then((response) => response.json().then((json) => ({ response, json })))
-      .then(({ response, json }) => {
-        if (!response.ok) {
-          setError(json?.error || "No active subscription found");
-          setLoading(false);
-          return;
-        }
-        setSubscription(json?.data || null);
-        setLoading(false);
-      })
-      .catch(() => {
-        setError("Failed to load subscription");
->>>>>>> 790594a (update)
         setLoading(false);
       });
   }, []);
 
-<<<<<<< HEAD
   async function handleUpgradeRequest(event) {
     event.preventDefault();
     if (!selectedPackageId) {
@@ -97,14 +76,10 @@ export default function DashboardSubscriptionPage() {
     setMessage(json?.data?.message || "Upgrade request submitted.");
     setSubmitting(false);
   }
-
-=======
->>>>>>> 790594a (update)
   return (
     <CustomerDashboardShell title="Subscription">
       {loading ? (
         <p className="text-sm text-zinc-500">Loading subscription...</p>
-<<<<<<< HEAD
       ) : (
         <div className="grid gap-4">
           {message && <p className="rounded bg-emerald-50 p-3 text-sm text-emerald-700">{message}</p>}
@@ -161,32 +136,6 @@ export default function DashboardSubscriptionPage() {
             </button>
           </form>
         </div>
-=======
-      ) : subscription ? (
-        <div className="grid gap-3 rounded border p-4 text-sm">
-          <p>
-            <span className="font-semibold">Package:</span> {subscription?.packageId?.name || "-"}
-          </p>
-          <p>
-            <span className="font-semibold">Billing:</span> {subscription.billingType}
-          </p>
-          <p>
-            <span className="font-semibold">Status:</span> {subscription.status}
-          </p>
-          <p>
-            <span className="font-semibold">Start:</span>{" "}
-            {subscription.startsAt ? new Date(subscription.startsAt).toLocaleDateString() : "-"}
-          </p>
-          <p>
-            <span className="font-semibold">Expire:</span>{" "}
-            {subscription.expiresAt ? new Date(subscription.expiresAt).toLocaleDateString() : "-"}
-          </p>
-        </div>
-      ) : (
-        <p className="rounded bg-amber-50 p-3 text-sm text-amber-700">
-          {error || "Subscription not available yet. Please wait for approval."}
-        </p>
->>>>>>> 790594a (update)
       )}
     </CustomerDashboardShell>
   );

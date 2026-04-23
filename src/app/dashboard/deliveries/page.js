@@ -12,10 +12,7 @@ export default function DashboardDeliveriesPage() {
   const [selectedDeliveryId, setSelectedDeliveryId] = useState("");
   const [selectedCourierType, setSelectedCourierType] = useState("");
   const [sending, setSending] = useState(false);
-<<<<<<< HEAD
   const [trackingDeliveryId, setTrackingDeliveryId] = useState("");
-=======
->>>>>>> 790594a (update)
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -142,7 +139,6 @@ export default function DashboardDeliveriesPage() {
       });
   }
 
-<<<<<<< HEAD
   function extractTrackingStatus(trackingPayload) {
     return (
       trackingPayload?.delivery_status ||
@@ -192,9 +188,6 @@ export default function DashboardDeliveriesPage() {
         setTrackingDeliveryId("");
       });
   }
-
-=======
->>>>>>> 790594a (update)
   return (
     <CustomerDashboardShell title="Deliveries">
       {message && <p className="mb-3 rounded bg-emerald-50 p-2 text-sm text-emerald-700">{message}</p>}
@@ -225,7 +218,6 @@ export default function DashboardDeliveriesPage() {
                   <td className="border p-2 capitalize">{delivery.status}</td>
                   <td className="border p-2">{delivery.trackingId || "-"}</td>
                   <td className="border p-2">
-<<<<<<< HEAD
                     <div className="flex flex-wrap gap-2">
                       {["pending", "failed"].includes(delivery.status) ? (
                         <button
@@ -252,19 +244,6 @@ export default function DashboardDeliveriesPage() {
                         <span className="text-xs text-zinc-500">No action</span>
                       ) : null}
                     </div>
-=======
-                    {delivery.status === "pending" ? (
-                      <button
-                        type="button"
-                        onClick={() => openSendModal(delivery._id)}
-                        className="rounded bg-zinc-900 px-3 py-1 text-xs text-white"
-                      >
-                        Send to Courier
-                      </button>
-                    ) : (
-                      <span className="text-xs text-zinc-500">No action</span>
-                    )}
->>>>>>> 790594a (update)
                   </td>
                 </tr>
               ))}

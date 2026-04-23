@@ -2,10 +2,7 @@ import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import User from "@/models/User";
-<<<<<<< HEAD
 import Subscription from "@/models/Subscription";
-=======
->>>>>>> 790594a (update)
 import { createSessionToken, getSessionCookieName } from "@/lib/session";
 
 export async function POST(request) {
@@ -31,7 +28,6 @@ export async function POST(request) {
     return NextResponse.json({ success: false, error: "Invalid credentials" }, { status: 401 });
   }
 
-<<<<<<< HEAD
   const activeSubscription = await Subscription.findOne({
     companyId: user.companyId,
     status: "active",
@@ -58,9 +54,6 @@ export async function POST(request) {
       { status: 403 }
     );
   }
-
-=======
->>>>>>> 790594a (update)
   const sessionToken = createSessionToken({
     userId: String(user._id),
     companyId: String(user.companyId),
