@@ -101,7 +101,9 @@ export async function ensureWaClient(rawKey) {
     await connectDB();
     const store = new MongoStore({ mongoose: mongoose });
     
-    const remoteDataPath = process.env.VERCEL ? "/tmp" : "./.wwebjs_auth";
+    const isVercel = process.env.VERCEL === "1" || !!process.env.VERCEL;
+    const remoteDataPath = isVercel ? "/tmp" : path.join(process.cwd(), ".wwebjs_auth");
+    console.log(`[WA] Environment: ${isVercel ? "Vercel" : "Local/Other"}`);
     console.log(`[WA] Using dataPath: ${remoteDataPath}`);
 
     const auth = new RemoteAuth({
