@@ -276,6 +276,7 @@ export default function SuperAdminPackagesPage() {
                         { label: "Users", key: "users" },
                         { label: "Orders", key: "ordersPerMonth" },
                         { label: "Emails", key: "emailsPerMonth" },
+                        { label: "Campaigns", key: "campaignsPerMonth" },
                         { label: "Promos", key: "wpPromotionsPerMonth" },
                       ].map((limit) => (
                         <div key={limit.key}>
