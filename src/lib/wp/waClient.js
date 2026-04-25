@@ -18,7 +18,8 @@ const isVercel = !!(
 );
 
 function getIsVercelRuntime() {
-  return !!(isVercel || process.env.VERCEL || (typeof process.cwd === 'function' && (process.cwd().includes('/vercel') || process.cwd().includes('/var/task'))));
+  const isLocal = process.platform === 'darwin' || process.platform === 'win32';
+  return !isLocal || !!(isVercel || process.env.VERCEL || (typeof process.cwd === 'function' && (process.cwd().includes('/vercel') || process.cwd().includes('/var/task'))));
 }
 
 console.log(`[WA] Global check - BROWSERLESS_API_KEY exists: ${!!process.env.BROWSERLESS_API_KEY}`);
