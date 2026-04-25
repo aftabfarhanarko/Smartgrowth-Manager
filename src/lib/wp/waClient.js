@@ -106,6 +106,7 @@ export async function ensureWaClient(rawKey) {
     await connectDB();
     const store = new MongoStore({ mongoose: mongoose });
     
+    const browserlessKey = process.env.BROWSERLESS_API_KEY;
     const isVercel = process.env.VERCEL === "1" || !!process.env.VERCEL;
     const isRemote = !!browserlessKey;
     const remoteDataPath = isVercel ? "/tmp" : path.join(process.cwd(), ".wwebjs_auth");
