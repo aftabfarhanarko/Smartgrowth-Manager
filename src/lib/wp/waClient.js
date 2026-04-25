@@ -12,8 +12,9 @@ const WA_CHROME_EXECUTABLE_PATH = process.env.WA_CHROME_EXECUTABLE_PATH || "";
 const isVercel = !!(
   process.env.VERCEL === "1" ||
   process.env.VERCEL ||
+  process.env.VERCEL_ENV ||
   process.env.NOW_BUILDER ||
-  (typeof process.cwd === 'function' && process.cwd().includes('/vercel'))
+  (typeof process.cwd === 'function' && (process.cwd().includes('/vercel') || process.cwd().includes('/var/task')))
 );
 
 console.log(`[WA] Global check - BROWSERLESS_API_KEY exists: ${!!process.env.BROWSERLESS_API_KEY}`);
@@ -146,11 +147,23 @@ export async function ensureWaClient(rawKey) {
     const store = new MongoStore({ mongoose: mongoose });
     
     const browserlessKey = process.env.BROWSERLESS_API_KEY;
-    const remoteDataPath = isVercel ? "/tmp" : path.join(process.cwd(), ".wwebjs_auth");
-    
-    console.log(`[WA] Path check - isVercel: ${isVercel}, remoteDataPath: ${remoteDataPath}`);
     
     const fs = await import("fs");
+    let remoteDataPath = isVercel ? "/tmp/.wwebjs_auth" : path.join(process.cwd(), ".wwebjs_auth");
+
+    // Fallback: If not explicitly Vercel but directory is not writable, use /tmp
+    if (!isVercel) {
+      try {
+        const testDir = path.join(process.cwd(), ".wwebjs_write_test");
+        if (!fs.existsSync(testDir)) fs.mkdirSync(testDir, { recursive: true });
+        fs.rmdirSync(testDir);
+      } catch (e) {
+        console.log(`[WA] Current directory not writable (${process.cwd()}), forcing /tmp/.wwebjs_auth`);
+        remoteDataPath = "/tmp/.wwebjs_auth";
+      }
+    }
+    
+    console.log(`[WA] Path check - isVercel: ${isVercel}, remoteDataPath: ${remoteDataPath}, cwd: ${process.cwd()}`);
     const clientId = `${WA_CLIENT_ID_BASE}-${clientKey}`;
 
     let auth;
