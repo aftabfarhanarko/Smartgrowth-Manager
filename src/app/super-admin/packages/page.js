@@ -275,6 +275,7 @@ export default function SuperAdminPackagesPage() {
                       {[
                         { label: "Users", key: "users" },
                         { label: "Orders", key: "ordersPerMonth" },
+                        { label: "Courier Orders", key: "courierOrdersPerMonth" },
                         { label: "Emails", key: "emailsPerMonth" },
                         { label: "Campaigns", key: "campaignsPerMonth" },
                         { label: "Promos", key: "wpPromotionsPerMonth" },
