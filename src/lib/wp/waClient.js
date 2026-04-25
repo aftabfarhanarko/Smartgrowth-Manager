@@ -123,10 +123,6 @@ export async function ensureWaClient(rawKey) {
     const client = new Client({
       authStrategy: auth,
       puppeteer: puppeteerOptions,
-      webVersionCache: {
-        type: "remote",
-        remotePath: "https://raw.githubusercontent.com/wppconnect-team/wa-js/main/dist/wppconnect-wa.js",
-      },
     });
 
     console.log(`[WA] Creating Client instance with RemoteAuth...`);
