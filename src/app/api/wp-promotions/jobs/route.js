@@ -24,8 +24,8 @@ export async function POST(request) {
 
   if (!draft) return apiError("Draft not found", 404);
 
-  const interval = Number(intervalSeconds || 30);
-  if (!Number.isFinite(interval) || interval < 10) return apiError("intervalSeconds is invalid", 400);
+  const interval = Number(intervalSeconds || 5);
+  if (!Number.isFinite(interval) || interval < 1) return apiError("intervalSeconds is invalid", 400);
 
   // Ensure feature exists; limits are checked per-message when running.
   const access = await assertSubscriptionAccess({
