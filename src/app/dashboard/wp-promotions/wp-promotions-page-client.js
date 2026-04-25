@@ -228,8 +228,28 @@ function WpPromotionsPageContent() {
                   </div>
                 ) : (
                   <div className="text-center">
-                    <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
-                    <p className="mt-4 text-sm font-bold text-slate-500">Generating QR Code...</p>
+                    {waLastError ? (
+                      <div className="space-y-4">
+                        <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-rose-100 text-rose-600">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-sm font-bold text-rose-700">Connection Failed</p>
+                          <p className="text-xs text-rose-500 max-w-[240px] mx-auto">{waLastError}</p>
+                        </div>
+                        <button 
+                          onClick={() => window.location.reload()}
+                          className="text-xs font-bold text-indigo-600 hover:underline"
+                        >
+                          Try Again
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
+                        <p className="mt-4 text-sm font-bold text-slate-500">Generating QR Code...</p>
+                      </>
+                    )}
                   </div>
                 )}
               </div>

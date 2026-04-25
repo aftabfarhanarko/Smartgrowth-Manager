@@ -132,11 +132,12 @@ export async function POST(request, { params }) {
     job.lastWaLink = sendResult?.waLink || "";
 
     job.lastRunAt = now;
-    const baseInterval = Number(job.intervalSeconds || 30);
-    // After every 10 sent messages, wait 3x interval (i.e. 3 minutes if base is 60s).
+    const baseInterval = Number(job.intervalSeconds || 5);
     const isBreakPoint = job.sentCount > 0 && job.sentCount % 10 === 0;
-    const multiplier = isBreakPoint ? 3 : 1;
-    job.nextRunAt = new Date(now.getTime() + baseInterval * multiplier * 1000);
+    
+    // If 10 messages sent, wait 30 seconds. Otherwise wait baseInterval (5s).
+    const waitSeconds = isBreakPoint ? 30 : baseInterval;
+    job.nextRunAt = new Date(now.getTime() + waitSeconds * 1000);
 
     const logEntry = {
       index: recipientIndex,

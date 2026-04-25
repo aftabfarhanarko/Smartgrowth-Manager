@@ -5,6 +5,7 @@ import { normalizePhoneDigits } from "@/lib/wp/phone";
 
 const WA_CLIENT_ID_BASE = process.env.WA_WEB_CLIENT_ID || "default";
 const WA_SESSION_DIR_BASE = process.env.WA_WEB_SESSION_DIR || path.join(process.cwd(), ".wa-session");
+const WA_CHROME_EXECUTABLE_PATH = process.env.WA_CHROME_EXECUTABLE_PATH || "";
 
 function getClientKey(rawKey) {
   const key = String(rawKey || "default").trim();
@@ -61,6 +62,7 @@ export async function ensureWaClient(rawKey) {
     });
     state.readyPromise.catch(() => {});
 
+    console.log(`[WA] Initializing client for key: ${clientKey}`);
     const auth = new LocalAuth({
       clientId: `${WA_CLIENT_ID_BASE}-${clientKey}`,
       dataPath: getSessionPathForKey(clientKey),
@@ -70,17 +72,25 @@ export async function ensureWaClient(rawKey) {
       authStrategy: auth,
       puppeteer: {
         headless: true,
-        args: ["--no-sandbox", "--disable-setuid-sandbox"],
+        executablePath: WA_CHROME_EXECUTABLE_PATH || undefined,
+        args: ["--no-sandbox"],
+      },
+      webVersionCache: {
+        type: "remote",
+        remotePath: "https://raw.githubusercontent.com/wppconnect-team/wa-js/main/dist/wppconnect-wa.js",
       },
     });
 
+    console.log(`[WA] Creating Client instance...`);
     state.client = client;
 
     client.on("qr", async (qr) => {
+      console.log(`[WA] QR received for ${clientKey}`);
       try {
         state.lastQrDataUrl = await qrcode.toDataURL(qr);
         state.lastQrAt = new Date();
       } catch (e) {
+        console.error(`[WA] QR processing error:`, e);
         state.lastQrDataUrl = "";
         state.lastQrAt = new Date();
         state.lastError = e?.message || "Failed to generate QR";
@@ -88,6 +98,7 @@ export async function ensureWaClient(rawKey) {
     });
 
     client.on("ready", () => {
+      console.log(`[WA] Client is ready for ${clientKey}`);
       state.connected = true;
       state.lastError = "";
       state.lastQrDataUrl = "";
@@ -114,15 +125,16 @@ export async function ensureWaClient(rawKey) {
 
     client.on("change_state", () => {});
 
+    console.log(`[WA] Calling client.initialize()...`);
     client.initialize().catch((e) => {
       const msg = e?.message || "WhatsApp initialization failed";
+      console.error(`[WA] Initialization catch error for ${clientKey}:`, msg);
       state.connected = false;
       state.lastError = msg;
 
-      if (msg.includes("Could not find Chrome")) {
-        state.client = null;
-        state.initPromise = null;
-      }
+      // Reset state so we can try again on next call
+      state.client = null;
+      state.initPromise = null;
 
       state.rejectReady?.(new Error(state.lastError));
     });
@@ -133,7 +145,11 @@ export async function ensureWaClient(rawKey) {
 
 export async function getWaStatus(rawKey) {
   const { state } = getOrCreateState(rawKey);
-  await ensureWaClient(rawKey);
+  try {
+    await ensureWaClient(rawKey);
+  } catch (e) {
+    state.lastError = e?.message || "WhatsApp initialization failed";
+  }
   return getInitState(state);
 }
 

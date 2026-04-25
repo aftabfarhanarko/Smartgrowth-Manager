@@ -40,7 +40,7 @@ const wpPromotionJobSchema = new mongoose.Schema(
     templateText: { type: String, required: true },
     templateLink: { type: String, default: "" },
 
-    intervalSeconds: { type: Number, default: 120, min: 10 },
+    intervalSeconds: { type: Number, default: 5, min: 5 },
     currentIndex: { type: Number, default: 0, min: 0 },
     sentCount: { type: Number, default: 0, min: 0 },
     status: { type: String, enum: ["running", "completed", "failed", "cancelled"], default: "running", index: true },
