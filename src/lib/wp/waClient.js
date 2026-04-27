@@ -338,11 +338,10 @@ export async function ensureWaClient(rawKey) {
       await client.initialize();
       console.log(`[WA] client.initialize() call completed for ${clientKey}. Waiting for Ready...`);
       
-      // On Vercel, we MUST wait for the ready event before proceeding
-      // to avoid 'getChat' undefined errors.
+      // On Vercel, we wait for a shorter period to avoid platform timeouts (10s limit)
       await Promise.race([
         state.readyPromise,
-        new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout waiting for WhatsApp Ready")), 45000))
+        new Promise((_, reject) => setTimeout(() => reject(new Error("WhatsApp Ready Timeout")), 8000))
       ]);
       
       return client;
@@ -386,12 +385,11 @@ export async function getWaStatus(rawKey) {
     // 2. If not in-memory or DB says disconnected, ensure client
     await ensureWaClient(rawKey);
     
-    // 3. Wait up to 15s for the ready event
+    // Wait a short time for the ready event
     if (!state.connected && state.readyPromise) {
-      console.log(`[WA] Status check: Waiting up to 15s for ready event for ${rawKey}...`);
       await Promise.race([
         state.readyPromise,
-        new Promise((resolve) => setTimeout(resolve, 15000))
+        new Promise((resolve) => setTimeout(resolve, 5000))
       ]);
     }
   } catch (e) {
