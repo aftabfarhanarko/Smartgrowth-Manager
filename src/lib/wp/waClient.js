@@ -318,25 +318,21 @@ export async function ensureWaClient(rawKey, force = false) {
     try {
       await client.initialize();
       console.log(`[WA] client.initialize() call completed for ${clientKey}. Waiting for Ready...`);
-      
-      console.log(`[WA] client.initialize() call completed for ${clientKey}.`);
       return client;
     } catch (err) {
-      console.error(`[WA] Initialization error for ${clientKey}:`, err.message);
+      console.error(`[WA] CRITICAL Initialization error for ${clientKey}:`, err.message);
       
-      // If browser is already running, we must clear state to allow a fresh start later
+      // Cleanup on failure
       state.client = null;
       state.initPromise = null;
       state.connected = false;
       
-      if (err.message.includes("already running")) {
-        console.log(`[WA] Attempting to force reset state due to running browser...`);
-        // We set a flag to wait before next attempt
-        state.lastError = "Browser conflict. Please wait or restart server.";
+      // If session is corrupt, this might be why it fails. Suggest logout or clear.
+      if (err.message.includes("Session") || err.message.includes("auth")) {
+        throw new Error(`WhatsApp Session Error: ${err.message}. Please Logout and Login again.`);
       }
       
-      state.rejectReady?.(err);
-      throw err;
+      throw new Error(`WhatsApp Init Failed: ${err.message}`);
     }
   })();
 
@@ -410,7 +406,7 @@ export async function sendWhatsAppMessage({ phone, message, clientKey }) {
       ]);
     } catch (e) {
       console.error(`[WA] Connection wait failed for ${clientKey}:`, e.message);
-      return { queued: false, sent: false, error: e.message };
+      return { queued: false, sent: false, error: `WhatsApp Connection Failed: ${e.message}` };
     }
   }
 
