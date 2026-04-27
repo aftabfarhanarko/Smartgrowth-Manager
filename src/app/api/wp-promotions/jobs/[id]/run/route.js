@@ -119,6 +119,23 @@ export async function POST(request, { params }) {
       clientKey: auth.context.companyId,
     });
 
+    // Handle "initializing" status from the sender
+    if (sendResult?.status === "initializing") {
+      job.status = "running";
+      job.lastError = sendResult.error;
+      // Retry very soon (5 seconds)
+      job.nextRunAt = new Date(now.getTime() + 5000);
+      await job.save();
+      return apiOk({
+        status: "running",
+        currentIndex: job.currentIndex,
+        sentCount: job.sentCount,
+        total: recipients.length,
+        nextRunAt: job.nextRunAt,
+        lastError: job.lastError,
+      });
+    }
+
     // Count it as "used" if it was queued successfully.
     if (sendResult?.queued) {
       await incrementUsage(auth.context.companyId, "wpPromotions", 1);

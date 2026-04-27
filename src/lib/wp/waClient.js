@@ -444,13 +444,21 @@ export async function sendWhatsAppMessage({ phone, message, clientKey }) {
     try {
       // ENSURE CLIENT AND PAGE OBJECTS ARE VALID
       if (!isClientTrulyReady(state.client)) {
-        console.log(`[WA] Client or Page is null/closed, initializing...`);
+        console.log(`[WA] Client or Page is null/closed, checking DB and re-init...`);
+        
+        // Check DB for status
+        const dbStatus = await WhatsAppStatus.findOne({ clientId: `${WA_CLIENT_ID_BASE}-${clientKey}` });
+        if (!dbStatus?.connected) {
+          return { queued: false, sent: false, status: "initializing", error: "WhatsApp is not connected yet. Please wait..." };
+        }
+
         state.client = null;
         state.initPromise = null;
         await ensureWaClient(clientKey);
         
+        // If still not ready after a quick init, tell the UI to retry later
         if (!isClientTrulyReady(state.client)) {
-          throw new Error("Failed to reach a ready state for WhatsApp client");
+          return { queued: false, sent: false, status: "initializing", error: "WhatsApp is starting up. Retrying in 5s..." };
         }
       }
       
