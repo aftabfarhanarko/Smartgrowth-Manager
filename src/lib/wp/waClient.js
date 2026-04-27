@@ -73,7 +73,7 @@ async function getPuppeteerConfig() {
         chromium.setGraphicsMode(false);
       }
 
-      const execPath = await chromium.executablePath("https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar");
+      const execPath = await chromium.executablePath("https://github.com/Sparticuz/chromium/releases/download/v126.0.0/chromium-v126.0.0-pack.tar");
       
       return {
         args: [
@@ -82,6 +82,7 @@ async function getPuppeteerConfig() {
           "--disable-setuid-sandbox",
           "--disable-dev-shm-usage",
           "--disable-gpu",
+          "--disable-software-rasterizer",
         ],
         defaultViewport: chromium.defaultViewport,
         executablePath: execPath,
