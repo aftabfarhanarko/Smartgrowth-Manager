@@ -73,70 +73,33 @@ async function getPuppeteerConfig() {
   const browserlessKey = process.env.BROWSERLESS_API_KEY;
   const isVercelRuntime = getIsVercelRuntime();
 
-  // 1. ALWAYS prioritize Browserless on Vercel/Production
-  if (browserlessKey && isVercelRuntime) {
-    console.log("[WA] Mode: Remote (Browserless.io) - Recommended for Vercel");
+  // 1. Production/Vercel: ONLY use Browserless
+  if (isVercelRuntime) {
+    if (!browserlessKey) throw new Error("BROWSERLESS_API_KEY is missing in Vercel environment.");
     return {
       browserWSEndpoint: `wss://chrome.browserless.io/?token=${browserlessKey}&timeout=60000`,
     };
   }
 
-  // 2. Local Development (MacOS/Windows)
-  if (!isVercelRuntime) {
-    console.log("[WA] Mode: Local Development (Chrome)");
-    const macChromePaths = [
-      "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-      "/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome",
-    ];
-    const fs = await import("fs");
-    let localPath = WA_CHROME_EXECUTABLE_PATH || undefined;
-    if (!localPath && process.platform === "darwin") {
-      for (const p of macChromePaths) {
-        if (fs.existsSync(p)) {
-          localPath = p;
-          break;
-        }
+  // 2. Local Development
+  console.log("[WA] Mode: Local Development (Chrome)");
+  const macChromePaths = [
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome",
+  ];
+  const fs = await import("fs");
+  let localPath = WA_CHROME_EXECUTABLE_PATH || undefined;
+  if (!localPath && process.platform === "darwin") {
+    for (const p of macChromePaths) {
+      if (fs.existsSync(p)) {
+        localPath = p;
+        break;
       }
     }
-    return {
-      headless: true,
-      executablePath: localPath,
-      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
-    };
   }
-
-  // 3. Fallback: Vercel Local Chromium (Brittle, but possible)
-  console.log("[WA] Mode: Vercel Local Chromium (Fallback)");
-  try {
-    const chromium = (await import("@sparticuz/chromium-min")).default;
-    const execPath = await chromium.executablePath("https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar");
-    
-    if (execPath) {
-      const libPath = path.dirname(execPath);
-      process.env.LD_LIBRARY_PATH = `${libPath}:${process.env.LD_LIBRARY_PATH || ""}`;
-    }
-
-    return {
-      args: [
-        ...chromium.args,
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-gpu",
-      ],
-      defaultViewport: chromium.defaultViewport,
-      executablePath: execPath,
-      headless: chromium.headless,
-    };
-  } catch (e) {
-    console.error("[WA] Local chromium failed:", e.message);
-    if (browserlessKey) {
-      return { browserWSEndpoint: `wss://chrome.browserless.io/?token=${browserlessKey}` };
-    }
-  }
-
   return {
     headless: true,
+    executablePath: localPath,
     args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
   };
 }
@@ -248,21 +211,24 @@ export async function ensureWaClient(rawKey, force = false) {
     // If using a remote browser (Browserless), we need to connect to it first
     if (puppeteerOptions.browserWSEndpoint) {
       console.log(`[WA] Connecting to remote browser at ${puppeteerOptions.browserWSEndpoint.split('?')[0]}...`);
-      const puppeteer = await import("puppeteer-core");
+      const puppeteerModule = await import("puppeteer-core");
+      const puppeteer = puppeteerModule.default || puppeteerModule;
+      
       try {
         const browser = await puppeteer.connect({
           browserWSEndpoint: puppeteerOptions.browserWSEndpoint,
-          defaultViewport: puppeteerOptions.defaultViewport
+          defaultViewport: puppeteerOptions.defaultViewport || null
         });
         console.log(`[WA] Successfully connected to remote browser!`);
         puppeteerConfig.browser = browser;
-        // When using an existing browser, some options aren't needed or cause errors
+        // MUST remove these when passing an existing browser instance
         delete puppeteerConfig.browserWSEndpoint;
         delete puppeteerConfig.executablePath;
         delete puppeteerConfig.args;
+        delete puppeteerConfig.headless;
       } catch (err) {
         console.error(`[WA] Failed to connect to remote browser:`, err.message);
-        // Fallback to local if connection fails
+        if (isVercelRuntime) throw new Error(`Remote browser connection failed: ${err.message}`);
       }
     }
 
