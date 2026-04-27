@@ -186,7 +186,7 @@ export async function ensureWaClient(rawKey) {
       auth = new RemoteAuth({
         clientId: clientId,
         store: store,
-        backupSyncIntervalMs: 10000, // Reduced from 5m to 10s for Vercel
+        backupSyncIntervalMs: 60000, // Minimum allowed value is 1 minute
         dataPath: remoteDataPath
       });
       
