@@ -186,7 +186,7 @@ export async function ensureWaClient(rawKey) {
       auth = new RemoteAuth({
         clientId: clientId,
         store: store,
-        backupSyncIntervalMs: 300000,
+        backupSyncIntervalMs: 10000, // Reduced from 5m to 10s for Vercel
         dataPath: remoteDataPath
       });
       
@@ -322,13 +322,12 @@ export async function getWaStatus(rawKey) {
   try {
     await ensureWaClient(rawKey);
     
-    // On Vercel, wait a few seconds to see if the client becomes ready
-    // This helps catch the 'ready' event in the same request cycle
+    // On Vercel, wait up to 15s for the ready event
     if (!state.connected && state.readyPromise) {
-      console.log(`[WA] Status check: Waiting up to 5s for ready event for ${rawKey}...`);
+      console.log(`[WA] Status check: Waiting up to 15s for ready event for ${rawKey}...`);
       await Promise.race([
         state.readyPromise,
-        new Promise((resolve) => setTimeout(resolve, 5000))
+        new Promise((resolve) => setTimeout(resolve, 15000))
       ]);
     }
   } catch (e) {
