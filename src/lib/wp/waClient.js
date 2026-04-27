@@ -147,6 +147,30 @@ export async function ensureWaClient(rawKey) {
   if (state.client && state.connected) return;
   if (state.initPromise) return state.initPromise;
 
+  const clientId = `${WA_CLIENT_ID_BASE}-${clientKey}`;
+  const isVercelRuntime = getIsVercelRuntime();
+
+  // THROTTLE: Don't initialize too often on Vercel to avoid 429 errors
+  if (isVercelRuntime) {
+    await connectDB();
+    const dbStatus = await WhatsAppStatus.findOne({ clientId: clientId });
+    const now = new Date();
+    if (dbStatus?.lastInitAt && (now.getTime() - dbStatus.lastInitAt.getTime() < 20000)) {
+      console.log(`[WA] Throttling: Initialized too recently for ${clientKey}. Skipping...`);
+      if (dbStatus.lastQrDataUrl) {
+        state.lastQrDataUrl = dbStatus.lastQrDataUrl;
+        state.lastQrAt = dbStatus.updatedAt;
+      }
+      return null;
+    }
+    // Mark as initializing in DB
+    await WhatsAppStatus.findOneAndUpdate(
+      { clientId: clientId },
+      { lastInitAt: now, updatedAt: now },
+      { upsert: true }
+    );
+  }
+
   state.initPromise = (async () => {
     // Double check inside the promise to prevent race conditions
     if (state.client && state.connected) return state.client;
