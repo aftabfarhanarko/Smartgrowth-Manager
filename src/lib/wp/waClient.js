@@ -220,12 +220,8 @@ export async function ensureWaClient(rawKey, force = false) {
           defaultViewport: puppeteerOptions.defaultViewport || null
         });
         console.log(`[WA] Successfully connected to remote browser!`);
-        puppeteerConfig.browser = browser;
-        // MUST remove these when passing an existing browser instance
-        delete puppeteerConfig.browserWSEndpoint;
-        delete puppeteerConfig.executablePath;
-        delete puppeteerConfig.args;
-        delete puppeteerConfig.headless;
+        // When providing a browser instance, we MUST NOT provide other launch options
+        puppeteerConfig = { browser: browser };
       } catch (err) {
         console.error(`[WA] Failed to connect to remote browser:`, err.message);
         if (isVercelRuntime) throw new Error(`Remote browser connection failed: ${err.message}`);
