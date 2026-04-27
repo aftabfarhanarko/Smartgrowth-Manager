@@ -210,16 +210,39 @@ export async function ensureWaClient(rawKey) {
 
     const puppeteerOptions = await getPuppeteerConfig();
     
+    let puppeteerConfig = {
+      ...puppeteerOptions,
+      handleSIGINT: false,
+      handleSIGTERM: false,
+      handleSIGHUP: false,
+    };
+
+    // If using a remote browser (Browserless), we need to connect to it first
+    if (puppeteerOptions.browserWSEndpoint) {
+      console.log(`[WA] Connecting to remote browser at ${puppeteerOptions.browserWSEndpoint.split('?')[0]}...`);
+      const puppeteer = await import("puppeteer-core");
+      try {
+        const browser = await puppeteer.connect({
+          browserWSEndpoint: puppeteerOptions.browserWSEndpoint,
+          defaultViewport: puppeteerOptions.defaultViewport
+        });
+        console.log(`[WA] Successfully connected to remote browser!`);
+        puppeteerConfig.browser = browser;
+        // When using an existing browser, some options aren't needed or cause errors
+        delete puppeteerConfig.browserWSEndpoint;
+        delete puppeteerConfig.executablePath;
+        delete puppeteerConfig.args;
+      } catch (err) {
+        console.error(`[WA] Failed to connect to remote browser:`, err.message);
+        // Fallback to local if connection fails
+      }
+    }
+
     const client = new Client({
       authStrategy: auth,
       takeoverOnConflict: true,
       takeoverTimeoutMs: 20000,
-      puppeteer: {
-        ...puppeteerOptions,
-        handleSIGINT: false,
-        handleSIGTERM: false,
-        handleSIGHUP: false,
-      },
+      puppeteer: puppeteerConfig,
       authTimeoutMs: 90000,
     });
 
@@ -236,36 +259,41 @@ export async function ensureWaClient(rawKey) {
     });
 
     client.on("authenticated", () => {
-      console.log(`[WA] Authenticated for ${clientKey}`);
+      console.log(`[WA] Authenticated successfully for ${clientKey}`);
+    });
+
+    client.on("auth_failure", (msg) => {
+      console.error(`[WA] Auth failure for ${clientKey}:`, msg);
+      state.lastError = `Auth failure: ${msg}`;
     });
 
     client.on("ready", () => {
-      console.log(`[WA] Client is ready for ${clientKey}`);
+      console.log(`[WA] Client is ready and CONNECTED for ${clientKey}`);
       state.connected = true;
       state.lastError = "";
       state.lastQrDataUrl = "";
       state.resolveReady?.();
     });
 
+    client.on("remote_session_saved", () => {
+      console.log(`[WA] Remote session successfully saved to MongoDB for ${clientKey}`);
+    });
+
     client.on("disconnected", (reason) => {
-      console.log(`[WA] Client disconnected for ${clientKey}:`, reason);
+      console.log(`[WA] Client DISCONNECTED for ${clientKey}:`, reason);
       state.connected = false;
       state.client = null;
       state.initPromise = null;
       state.lastQrDataUrl = "";
-      // Try to re-initialize after a short delay if it wasn't a manual logout
       if (reason !== "NAVIGATION") {
         setTimeout(() => ensureWaClient(clientKey), 5000);
       }
     });
 
-    client.on("remote_session_saved", () => {
-      console.log(`[WA] Remote session saved for ${clientKey}`);
-    });
-
     console.log(`[WA] Initializing client for key: ${clientKey}...`);
     try {
       await client.initialize();
+      console.log(`[WA] client.initialize() call completed for ${clientKey}`);
       return client;
     } catch (err) {
       console.error(`[WA] Initialization error for ${clientKey}:`, err.message);
@@ -293,7 +321,18 @@ export async function getWaStatus(rawKey) {
   const { state } = getOrCreateState(rawKey);
   try {
     await ensureWaClient(rawKey);
+    
+    // On Vercel, wait a few seconds to see if the client becomes ready
+    // This helps catch the 'ready' event in the same request cycle
+    if (!state.connected && state.readyPromise) {
+      console.log(`[WA] Status check: Waiting up to 5s for ready event for ${rawKey}...`);
+      await Promise.race([
+        state.readyPromise,
+        new Promise((resolve) => setTimeout(resolve, 5000))
+      ]);
+    }
   } catch (e) {
+    console.error(`[WA] Status error for ${rawKey}:`, e.message);
     state.lastError = e?.message || "WhatsApp initialization failed";
   }
   return getInitState(state);
