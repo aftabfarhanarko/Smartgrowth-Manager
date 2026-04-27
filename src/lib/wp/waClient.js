@@ -63,38 +63,16 @@ async function getPuppeteerConfig() {
   const browserlessKey = process.env.BROWSERLESS_API_KEY;
   const isVercelRuntime = getIsVercelRuntime();
 
-  if (isVercelRuntime) {
-    console.log("[WA] Mode: Vercel Local Chromium (Standard Pack)");
-    try {
-      const chromium = (await import("@sparticuz/chromium")).default;
-      
-      // Some versions of @sparticuz/chromium require this for serverless environments
-      if (typeof chromium.setGraphicsMode === 'function') {
-        chromium.setGraphicsMode(false);
-      }
-
-      const execPath = await chromium.executablePath("https://github.com/Sparticuz/chromium/releases/download/v126.0.0/chromium-v126.0.0-pack.tar");
-      
-      return {
-        args: [
-          ...chromium.args,
-          "--no-sandbox",
-          "--disable-setuid-sandbox",
-          "--disable-dev-shm-usage",
-          "--disable-gpu",
-          "--disable-software-rasterizer",
-        ],
-        defaultViewport: chromium.defaultViewport,
-        executablePath: execPath,
-        headless: chromium.headless,
-      };
-    } catch (e) {
-      console.error("[WA] Local chromium failed, trying Browserless fallback:", e.message);
-    }
+  // 1. ALWAYS prioritize Browserless on Vercel/Production
+  if (browserlessKey && isVercelRuntime) {
+    console.log("[WA] Mode: Remote (Browserless.io) - Recommended for Vercel");
+    return {
+      browserWSEndpoint: `wss://chrome.browserless.io/?token=${browserlessKey}`,
+    };
   }
 
-  // On Local, prioritize local Google Chrome for stability
-  if (!isVercel) {
+  // 2. Local Development (MacOS/Windows)
+  if (!isVercelRuntime) {
     console.log("[WA] Mode: Local Development (Chrome)");
     const macChromePaths = [
       "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
@@ -117,12 +95,34 @@ async function getPuppeteerConfig() {
     };
   }
 
-  // Use Browserless as a fallback
-  if (browserlessKey) {
-    console.log("[WA] Mode: Remote (Browserless.io)");
+  // 3. Fallback: Vercel Local Chromium (Brittle, but possible)
+  console.log("[WA] Mode: Vercel Local Chromium (Fallback)");
+  try {
+    const chromium = (await import("@sparticuz/chromium-min")).default;
+    const execPath = await chromium.executablePath("https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar");
+    
+    if (execPath) {
+      const libPath = path.dirname(execPath);
+      process.env.LD_LIBRARY_PATH = `${libPath}:${process.env.LD_LIBRARY_PATH || ""}`;
+    }
+
     return {
-      browserWSEndpoint: `wss://chrome.browserless.io/?token=${browserlessKey}`,
+      args: [
+        ...chromium.args,
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-gpu",
+      ],
+      defaultViewport: chromium.defaultViewport,
+      executablePath: execPath,
+      headless: chromium.headless,
     };
+  } catch (e) {
+    console.error("[WA] Local chromium failed:", e.message);
+    if (browserlessKey) {
+      return { browserWSEndpoint: `wss://chrome.browserless.io/?token=${browserlessKey}` };
+    }
   }
 
   return {

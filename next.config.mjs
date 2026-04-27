@@ -2,10 +2,7 @@
 const nextConfig = {
   /* config options here */
   reactCompiler: true,
-  serverExternalPackages: ["@sparticuz/chromium", "puppeteer-core", "whatsapp-web.js"],
-  outputFileTracingIncludes: {
-    '/**': ['./node_modules/@sparticuz/chromium/bin/*'],
-  },
+  serverExternalPackages: ["@sparticuz/chromium-min", "puppeteer-core", "whatsapp-web.js"],
 };
 
 export default nextConfig;
