@@ -267,8 +267,19 @@ export async function ensureWaClient(rawKey) {
       }
     });
 
-    client.on("authenticated", () => {
+    client.on("authenticated", async () => {
       console.log(`[WA] Authenticated successfully for ${clientKey}`);
+      // SAVE CONNECTED STATUS IMMEDIATELY ON AUTHENTICATION
+      try {
+        await WhatsAppStatus.findOneAndUpdate(
+          { clientId: clientId },
+          { connected: true, lastQrDataUrl: "", updatedAt: new Date() },
+          { upsert: true }
+        );
+        state.connected = true;
+      } catch (e) {
+        console.error(`[WA] Error saving authenticated status to DB:`, e.message);
+      }
     });
 
     client.on("auth_failure", (msg) => {

@@ -78,7 +78,7 @@ function WpPromotionsPageContent() {
       } catch { if (mounted) setWaLastError("Failed to load WhatsApp status"); }
     }
     loadWaStatus();
-    const t = setInterval(loadWaStatus, 2000);
+    const t = setInterval(loadWaStatus, 5000);
     return () => { mounted = false; clearInterval(t); };
   }, []);
 
