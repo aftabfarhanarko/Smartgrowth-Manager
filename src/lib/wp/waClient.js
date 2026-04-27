@@ -6,6 +6,15 @@ import path from "path";
 import { normalizePhoneDigits } from "@/lib/wp/phone";
 import connectDB from "@/lib/mongodb";
 
+// Simple Schema to track connection status in DB for Vercel
+const WhatsAppStatusSchema = new mongoose.Schema({
+  clientId: { type: String, unique: true },
+  connected: { type: Boolean, default: false },
+  lastQrDataUrl: String,
+  updatedAt: { type: Date, default: Date.now }
+});
+const WhatsAppStatus = mongoose.models.WhatsAppStatus || mongoose.model("WhatsAppStatus", WhatsAppStatusSchema);
+
 const WA_CLIENT_ID_BASE = process.env.WA_WEB_CLIENT_ID || "default";
 const WA_CHROME_EXECUTABLE_PATH = process.env.WA_CHROME_EXECUTABLE_PATH || "";
 
@@ -267,24 +276,47 @@ export async function ensureWaClient(rawKey) {
       state.lastError = `Auth failure: ${msg}`;
     });
 
-    client.on("ready", () => {
+    client.on("ready", async () => {
       console.log(`[WA] Client is ready and CONNECTED for ${clientKey}`);
       state.connected = true;
       state.lastError = "";
       state.lastQrDataUrl = "";
       state.resolveReady?.();
+      
+      // PERSIST STATUS TO DB
+      try {
+        await WhatsAppStatus.findOneAndUpdate(
+          { clientId: clientId },
+          { connected: true, lastQrDataUrl: "", updatedAt: new Date() },
+          { upsert: true }
+        );
+      } catch (e) {
+        console.error(`[WA] Error saving status to DB:`, e.message);
+      }
     });
 
-    client.on("remote_session_saved", () => {
+    client.on("remote_session_saved", async () => {
       console.log(`[WA] Remote session successfully saved to MongoDB for ${clientKey}`);
     });
 
-    client.on("disconnected", (reason) => {
+    client.on("disconnected", async (reason) => {
       console.log(`[WA] Client DISCONNECTED for ${clientKey}:`, reason);
       state.connected = false;
       state.client = null;
       state.initPromise = null;
       state.lastQrDataUrl = "";
+      
+      // UPDATE STATUS IN DB
+      try {
+        await WhatsAppStatus.findOneAndUpdate(
+          { clientId: clientId },
+          { connected: false, updatedAt: new Date() },
+          { upsert: true }
+        );
+      } catch (e) {
+        console.error(`[WA] Error updating logout status in DB:`, e.message);
+      }
+
       if (reason !== "NAVIGATION") {
         setTimeout(() => ensureWaClient(clientKey), 5000);
       }
@@ -318,11 +350,24 @@ export async function ensureWaClient(rawKey) {
 }
 
 export async function getWaStatus(rawKey) {
-  const { state } = getOrCreateState(rawKey);
+  const { clientKey, state } = getOrCreateState(rawKey);
+  const clientId = `${WA_CLIENT_ID_BASE}-${clientKey}`;
+  
+  await connectDB();
+  
   try {
+    // 1. Check DB first
+    const dbStatus = await WhatsAppStatus.findOne({ clientId: clientId });
+    if (dbStatus?.connected) {
+      state.connected = true;
+      // If we are in-memory connected, just return
+      if (state.client) return getInitState(state);
+    }
+
+    // 2. If not in-memory or DB says disconnected, ensure client
     await ensureWaClient(rawKey);
     
-    // On Vercel, wait up to 15s for the ready event
+    // 3. Wait up to 15s for the ready event
     if (!state.connected && state.readyPromise) {
       console.log(`[WA] Status check: Waiting up to 15s for ready event for ${rawKey}...`);
       await Promise.race([
