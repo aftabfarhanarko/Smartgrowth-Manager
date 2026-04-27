@@ -430,7 +430,7 @@ export async function sendWhatsAppMessage({ phone, message, clientKey }) {
   
   // Try to send with a simple retry for detached frame errors
   let lastErr = null;
-  for (let i = 0; i < 2; i++) {
+  for (let i = 0; i < 3; i++) {
     try {
       const result = await state.client.sendMessage(waChatId, message || "");
       console.log(`[WA] Message sent successfully to ${digits}`);
@@ -438,12 +438,26 @@ export async function sendWhatsAppMessage({ phone, message, clientKey }) {
     } catch (err) {
       lastErr = err;
       console.error(`[WA] Send attempt ${i+1} failed for ${digits}:`, err.message);
-      if (err.message.includes("detached Frame") || err.message.includes("Protocol error")) {
-        // Wait a bit before retry
-        await new Promise(r => setTimeout(r, 1000));
+      
+      if (err.message.includes("detached Frame") || err.message.includes("Protocol error") || err.message.includes("Execution context was destroyed")) {
+        console.log(`[WA] Stale browser detected, attempting to re-initialize...`);
+        // Clear the state so the next attempt gets a fresh client
+        state.client = null;
+        state.initPromise = null;
+        state.connected = false;
+        
+        try {
+          await ensureWaClient(clientKey);
+          // Wait a bit for the new client to be ready
+          await new Promise(r => setTimeout(r, 2000));
+        } catch (initErr) {
+          console.error(`[WA] Re-initialization failed during retry:`, initErr.message);
+        }
         continue;
       }
-      break;
+      
+      // For other errors, wait a bit and retry
+      await new Promise(r => setTimeout(r, 1000));
     }
   }
 
