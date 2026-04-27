@@ -399,6 +399,15 @@ export async function getWaStatus(rawKey) {
   return getInitState(state);
 }
 
+// Helper to check if client is truly ready to send
+function isClientTrulyReady(client) {
+  try {
+    return client && client.pupPage && !client.pupPage.isClosed();
+  } catch (e) {
+    return false;
+  }
+}
+
 export async function sendWhatsAppMessage({ phone, message, clientKey }) {
   const { state } = getOrCreateState(clientKey);
   
@@ -438,10 +447,16 @@ export async function sendWhatsAppMessage({ phone, message, clientKey }) {
   let lastErr = null;
   for (let i = 0; i < 3; i++) {
     try {
-      // ENSURE CLIENT EXISTS IN EVERY ATTEMPT
-      if (!state.client) {
-        console.log(`[WA] Client is null, initializing...`);
+      // ENSURE CLIENT AND PAGE OBJECTS ARE VALID
+      if (!isClientTrulyReady(state.client)) {
+        console.log(`[WA] Client or Page is null/closed, initializing...`);
+        state.client = null;
+        state.initPromise = null;
         await ensureWaClient(clientKey);
+        
+        if (!isClientTrulyReady(state.client)) {
+          throw new Error("Failed to reach a ready state for WhatsApp client");
+        }
       }
       
       const result = await state.client.sendMessage(waChatId, message || "");
