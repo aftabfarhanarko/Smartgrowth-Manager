@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { RefreshCw } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import * as XLSX from "xlsx";
@@ -217,11 +218,24 @@ function WpPromotionsPageContent() {
                       <Image src={waQrDataUrl} alt="WhatsApp QR" width={200} height={200} className="h-48 w-48" />
                     </div>
                     <p className="text-xs font-medium text-slate-500">Scan QR with WhatsApp</p>
+                    <button 
+                      onClick={handleWaReconnect} 
+                      className="mt-2 text-[10px] font-bold text-indigo-600 bg-indigo-50 px-4 py-2 rounded-xl hover:bg-indigo-100 transition-all flex items-center gap-2 shadow-sm"
+                    >
+                      <RefreshCw className="h-3 w-3" />
+                      Regenerate QR
+                    </button>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center">
                     <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
                     <p className="mt-4 text-sm font-bold text-slate-500">Loading QR...</p>
+                    <button 
+                      onClick={handleWaReconnect} 
+                      className="mt-4 text-[10px] font-bold text-slate-400 hover:text-indigo-600 transition-colors"
+                    >
+                      Stuck? Try Resetting
+                    </button>
                   </div>
                 )}
                 {waLastError && (
