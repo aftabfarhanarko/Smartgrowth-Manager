@@ -11,6 +11,7 @@ const WhatsAppStatusSchema = new mongoose.Schema({
   clientId: { type: String, unique: true },
   connected: { type: Boolean, default: false },
   lastQrDataUrl: String,
+  lastInitAt: { type: Date }, // Added to throttle initializations
   updatedAt: { type: Date, default: Date.now }
 });
 const WhatsAppStatus = mongoose.models.WhatsAppStatus || mongoose.model("WhatsAppStatus", WhatsAppStatusSchema);
