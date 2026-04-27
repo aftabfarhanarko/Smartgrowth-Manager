@@ -440,6 +440,12 @@ export async function sendWhatsAppMessage({ phone, message, clientKey }) {
   let lastErr = null;
   for (let i = 0; i < 3; i++) {
     try {
+      // ENSURE CLIENT EXISTS IN EVERY ATTEMPT
+      if (!state.client) {
+        console.log(`[WA] Client is null, initializing...`);
+        await ensureWaClient(clientKey);
+      }
+      
       const result = await state.client.sendMessage(waChatId, message || "");
       console.log(`[WA] Message sent successfully to ${digits}`);
       return { queued: true, sent: true, waLink, resultId: result?.id?._serialized || "" };
