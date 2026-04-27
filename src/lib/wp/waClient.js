@@ -141,7 +141,7 @@ async function getPuppeteerConfig() {
   };
 }
 
-export async function ensureWaClient(rawKey) {
+export async function ensureWaClient(rawKey, force = false) {
   const { clientKey, state } = getOrCreateState(rawKey);
   
   if (state.client && state.connected) return;
@@ -150,25 +150,19 @@ export async function ensureWaClient(rawKey) {
   const clientId = `${WA_CLIENT_ID_BASE}-${clientKey}`;
   const isVercelRuntime = getIsVercelRuntime();
 
-  // THROTTLE: Don't initialize too often on Vercel to avoid 429 errors
-  if (isVercelRuntime) {
+  // THROTTLE: Don't initialize too often on Vercel unless it's a FORCE request (like sending a message)
+  if (isVercelRuntime && !force) {
     await connectDB();
     const dbStatus = await WhatsAppStatus.findOne({ clientId: clientId });
     const now = new Date();
-    if (dbStatus?.lastInitAt && (now.getTime() - dbStatus.lastInitAt.getTime() < 20000)) {
-      console.log(`[WA] Throttling: Initialized too recently for ${clientKey}. Skipping...`);
+    if (dbStatus?.lastInitAt && (now.getTime() - dbStatus.lastInitAt.getTime() < 15000)) {
+      console.log(`[WA] Throttling status check for ${clientKey}.`);
       if (dbStatus.lastQrDataUrl) {
         state.lastQrDataUrl = dbStatus.lastQrDataUrl;
         state.lastQrAt = dbStatus.updatedAt;
       }
       return null;
     }
-    // Mark as initializing in DB
-    await WhatsAppStatus.findOneAndUpdate(
-      { clientId: clientId },
-      { lastInitAt: now, updatedAt: now },
-      { upsert: true }
-    );
   }
 
   state.initPromise = (async () => {
@@ -479,7 +473,7 @@ export async function sendWhatsAppMessage({ phone, message, clientKey }) {
 
         state.client = null;
         state.initPromise = null;
-        await ensureWaClient(clientKey);
+        await ensureWaClient(clientKey, true);
         
         // If still not ready after a quick init, tell the UI to retry later
         if (!isClientTrulyReady(state.client)) {
