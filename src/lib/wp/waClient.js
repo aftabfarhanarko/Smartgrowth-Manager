@@ -76,7 +76,7 @@ async function getPuppeteerConfig() {
   if (browserlessKey && isVercelRuntime) {
     console.log("[WA] Mode: Remote (Browserless.io) - Recommended for Vercel");
     return {
-      browserWSEndpoint: `wss://chrome.browserless.io/?token=${browserlessKey}`,
+      browserWSEndpoint: `wss://chrome.browserless.io/?token=${browserlessKey}&timeout=60000`,
     };
   }
 
