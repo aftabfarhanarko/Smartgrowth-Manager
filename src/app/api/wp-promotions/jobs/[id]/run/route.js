@@ -170,8 +170,12 @@ export async function POST(request, { params }) {
       lastLog: logEntry,
     });
   } catch (error) {
-    job.status = "failed";
+    // If a single message fails, log it and MOVE TO NEXT recipient instead of stopping the whole job
+    console.error(`[Job] Message failed for index ${recipientIndex}:`, error.message);
+    
+    job.currentIndex += 1;
     job.lastError = error?.message || "Send failed";
+    
     const logEntry = {
       index: recipientIndex,
       name: recipient?.name || "",
@@ -183,14 +187,29 @@ export async function POST(request, { params }) {
     };
     job.sendLogs = Array.isArray(job.sendLogs) ? job.sendLogs : [];
     job.sendLogs.push(logEntry);
+    if (job.sendLogs.length > 100) job.sendLogs = job.sendLogs.slice(job.sendLogs.length - 100);
+
+    // Schedule next run even on failure
+    const baseInterval = Number(job.intervalSeconds || 5);
+    job.nextRunAt = new Date(now.getTime() + baseInterval * 1000);
+
+    // If this was the last recipient, complete. Otherwise keep 'running'
+    if (job.currentIndex >= recipients.length) {
+      job.status = "completed";
+      job.nextRunAt = null;
+    } else {
+      job.status = "running";
+    }
+
     await job.save();
+
     return apiOk({
-      status: "failed",
+      status: job.status,
       currentIndex: job.currentIndex,
       sentCount: job.sentCount,
       total: recipients.length,
+      nextRunAt: job.nextRunAt,
       lastError: job.lastError,
-      lastWaLink: job.lastWaLink,
       lastLog: logEntry,
     });
   }

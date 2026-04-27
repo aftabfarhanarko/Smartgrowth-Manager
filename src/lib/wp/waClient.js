@@ -336,7 +336,15 @@ export async function ensureWaClient(rawKey) {
     console.log(`[WA] Initializing client for key: ${clientKey}...`);
     try {
       await client.initialize();
-      console.log(`[WA] client.initialize() call completed for ${clientKey}`);
+      console.log(`[WA] client.initialize() call completed for ${clientKey}. Waiting for Ready...`);
+      
+      // On Vercel, we MUST wait for the ready event before proceeding
+      // to avoid 'getChat' undefined errors.
+      await Promise.race([
+        state.readyPromise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout waiting for WhatsApp Ready")), 45000))
+      ]);
+      
       return client;
     } catch (err) {
       console.error(`[WA] Initialization error for ${clientKey}:`, err.message);
