@@ -83,12 +83,12 @@ async function getPuppeteerConfig() {
   console.log(`[WA] getPuppeteerConfig - isVercelRuntime: ${isVercelRuntime}, isLocal: ${isLocal}, browserlessKey: ${!!browserlessKey}`);
 
   // 1. Production/Vercel: ONLY use Browserless
-  // But if we are on a Local machine (Mac/Win), we should prefer local Chrome to avoid Browserless limits/429
+  // FORCE local Chrome on Mac/Win even if isVercelRuntime is true (to avoid 401/429 locally)
   if (isVercelRuntime && !isLocal) {
     console.log("[WA] Selected Mode: Remote Browser (Browserless)");
     if (!browserlessKey) throw new Error("BROWSERLESS_API_KEY is missing in Vercel environment.");
     return {
-      browserWSEndpoint: `wss://chrome.browserless.io/?token=${browserlessKey}&timeout=60000`,
+      browserWSEndpoint: `wss://chrome.browserless.io/?token=${browserlessKey.trim()}&timeout=60000`,
     };
   }
 
