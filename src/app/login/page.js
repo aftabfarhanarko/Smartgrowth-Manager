@@ -41,7 +41,7 @@ export default function LoginPage() {
 
   return (
     <main className="flex min-h-screen items-stretch overflow-hidden bg-white">
-      {/* Left Section: Visual / Branding (Hidden on mobile) */}
+      {/* Left Section: Visual / Branding (Hidden on mobile) wqef wefgwewe */}
       <div className="relative hidden w-1/2 flex-col justify-between bg-indigo-600 p-12 lg:flex xl:w-3/5">
         <div className="absolute inset-0 bg-[linear-gradient(to_bottom_right,rgba(79,70,229,0.8),rgba(30,27,75,0.95))]">
           <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.4)_0%,transparent_50%)]"></div>
