@@ -108,11 +108,14 @@ async function getPuppeteerConfig() {
       }
     }
   }
-  return {
+  const config = {
     headless: true,
     executablePath: localPath,
     args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
   };
+
+  console.log(`[WA-CONFIG-LOG] Selected Mode: Local Browser, Config:`, JSON.stringify(config));
+  return config;
 }
 
 export async function ensureWaClient(rawKey, force = false) {
@@ -367,7 +370,7 @@ export async function ensureWaClient(rawKey, force = false) {
       }
 
       if (errMsg.includes("401")) {
-        throw new Error(`Browserless Auth Failed (401): Your API key seems invalid or expired. Please check your BROWSERLESS_API_KEY in .env.local.`);
+        throw new Error(`Auth Failed (401): ${errMsg}. If this is Browserless, check your key. If local, check Chrome version.`);
       }
       
       throw new Error(`WhatsApp Init Failed: ${errMsg}`);
