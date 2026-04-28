@@ -28,7 +28,7 @@ export async function POST(request, { params }) {
     incrementBy: 1,
   });
   if (access.error) return apiError(access.error, access.status, access.meta);
-
+// wefpweokf0oweif0w
   const delivery = await Delivery.findOne({
     _id: id,
     companyId: auth.context.companyId,
