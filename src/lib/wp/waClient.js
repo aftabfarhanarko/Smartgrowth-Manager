@@ -29,10 +29,12 @@ const isVercel = !!(
 
 function getIsVercelRuntime() {
   const isLocal = process.platform === 'darwin' || process.platform === 'win32';
-  // Force local if we are on a desktop OS and VERCEL is not explicitly set to a truthy value
-  if (isLocal && !process.env.VERCEL && !process.env.VERCEL_ENV) return false;
+  // If we are on a desktop OS, but the path or env suggests Vercel, respect that unless it's explicitly local
+  if (isLocal && !isVercel && !process.env.VERCEL && !process.env.VERCEL_ENV) {
+    return false;
+  }
   
-  return !isLocal || !!(isVercel || process.env.VERCEL || (typeof process.cwd === 'function' && (process.cwd().includes('/vercel') || process.cwd().includes('/var/task'))));
+  return !isLocal || !!(isVercel || process.env.VERCEL || process.env.VERCEL_ENV);
 }
 
 console.log(`[WA] Environment check - isLocal: ${process.platform === 'darwin' || process.platform === 'win32'}, isVercel: ${isVercel}, platform: ${process.platform}`);
@@ -76,17 +78,19 @@ function getInitState(state) {
 async function getPuppeteerConfig() {
   const browserlessKey = process.env.BROWSERLESS_API_KEY;
   const isVercelRuntime = getIsVercelRuntime();
+  const isLocal = process.platform === 'darwin' || process.platform === 'win32';
 
   // 1. Production/Vercel: ONLY use Browserless
-  if (isVercelRuntime) {
+  // But if we are on a Local machine (Mac/Win), we should prefer local Chrome to avoid Browserless limits/429
+  if (isVercelRuntime && !isLocal) {
     if (!browserlessKey) throw new Error("BROWSERLESS_API_KEY is missing in Vercel environment.");
     return {
       browserWSEndpoint: `wss://chrome.browserless.io/?token=${browserlessKey}&timeout=60000`,
     };
   }
 
-  // 2. Local Development
-  console.log("[WA] Mode: Local Development (Chrome)");
+  // 2. Local Development (or local simulation of Vercel)
+  console.log("[WA] Mode: Local Browser");
   const macChromePaths = [
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
     "/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome",
