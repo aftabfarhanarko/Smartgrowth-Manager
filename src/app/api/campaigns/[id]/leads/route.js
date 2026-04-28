@@ -70,3 +70,47 @@ export async function GET(request, { params }) {
     leads: normalizedLeads,
   });
 }
+
+export async function DELETE(request, { params }) {
+  const auth = assertTenantContext(request);
+  if (auth.error) return apiError(auth.error, auth.status);
+
+  const { id } = await params;
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return apiError("Invalid campaign id", 400);
+  }
+
+  await connectDB();
+  const access = await assertSubscriptionAccess({
+    companyId: auth.context.companyId,
+    featureKey: "email_marketing",
+  });
+  if (access.error) return apiError(access.error, access.status, access.meta);
+
+  const campaign = await Campaign.findOne({
+    _id: id,
+    companyId: auth.context.companyId,
+  });
+  if (!campaign) return apiError("Campaign not found", 404);
+
+  const body = await request.json().catch(() => ({}));
+  const leadIds = Array.isArray(body?.leadIds) ? body.leadIds : [];
+  const normalizedLeadIds = leadIds
+    .map((leadId) => String(leadId || "").trim())
+    .filter((leadId) => mongoose.Types.ObjectId.isValid(leadId));
+
+  if (!normalizedLeadIds.length) {
+    return apiError("At least one valid lead id is required", 400);
+  }
+
+  const deletion = await CampaignLead.deleteMany({
+    _id: { $in: normalizedLeadIds },
+    campaignId: campaign._id,
+    companyId: auth.context.companyId,
+  });
+
+  return apiOk({
+    deleted: true,
+    deletedCount: deletion.deletedCount || 0,
+  });
+}

@@ -22,6 +22,10 @@ export default function LeadsPageClient() {
   const [error, setError] = useState("");
   const [selectedLeadIds, setSelectedLeadIds] = useState([]);
   const [emailSending, setEmailSending] = useState(false);
+  const [wpSending, setWpSending] = useState(false);
+  const [deletingLeadId, setDeletingLeadId] = useState("");
+  const [deletingSelected, setDeletingSelected] = useState(false);
+  const [deletingCampaignId, setDeletingCampaignId] = useState("");
 
   const selectedCampaign = campaigns.find((item) => String(item._id) === String(selectedCampaignId)) || null;
   const selectedLeadSet = useMemo(() => new Set(selectedLeadIds.map(String)), [selectedLeadIds]);
@@ -42,11 +46,17 @@ export default function LeadsPageClient() {
 
   useEffect(() => {
     if (!selectedCampaignId) return;
+    loadLeads(selectedCampaignId);
+  }, [selectedCampaignId]);
+
+  function loadLeads(campaignId, options = {}) {
+    if (!campaignId) return;
+    const { preserveSelection = false } = options;
     setLoadingLeads(true);
     setError("");
-    setSelectedLeadIds([]);
+    if (!preserveSelection) setSelectedLeadIds([]);
 
-    fetch(`/api/campaigns/${selectedCampaignId}/leads`, { headers: getCustomerHeaders() })
+    fetch(`/api/campaigns/${campaignId}/leads`, { headers: getCustomerHeaders() })
       .then((r) => r.json())
       .then((json) => {
         setLeads(Array.isArray(json?.data?.leads) ? json.data.leads : []);
@@ -54,7 +64,7 @@ export default function LeadsPageClient() {
       })
       .catch(() => setError("Failed to load leads"))
       .finally(() => setLoadingLeads(false));
-  }, [selectedCampaignId]);
+  }
 
   function toggleLeadSelection(leadId) {
     const id = String(leadId);
@@ -88,6 +98,22 @@ export default function LeadsPageClient() {
     return String(value || "").trim().toLowerCase();
   }
 
+  function buildPhoneRecipients(leadSource) {
+    const phoneField = (selectedCampaign?.fields || []).find((f) => f.type === "phone");
+    const nameField =
+      (selectedCampaign?.fields || []).find(
+        (f) => f.type === "text" && /name/i.test(f.label || f.key)
+      ) || (selectedCampaign?.fields || []).find((f) => f.type === "text");
+    if (!phoneField || !nameField) return null;
+
+    return leadSource
+      .map((lead) => ({
+        name: String(findAnswerByField(lead.answers, nameField) || "").trim(),
+        phone: sanitizePhoneDigits(findAnswerByField(lead.answers, phoneField)),
+      }))
+      .filter((item) => item.phone);
+  }
+
   function handleExport(type) {
     setError("");
     if (!selectedCampaignId) return setError("Select a campaign first.");
@@ -95,11 +121,10 @@ export default function LeadsPageClient() {
     const leadSource = selectedLeadIds.length ? leads.filter((l) => selectedLeadSet.has(String(l._id))) : leads;
     
     if (type === "phone") {
-      const phoneField = (selectedCampaign?.fields || []).find((f) => f.type === "phone");
-      const nameField = (selectedCampaign?.fields || []).find((f) => f.type === "text" && /name/i.test(f.label || f.key)) || (selectedCampaign?.fields || []).find((f) => f.type === "text");
-      if (!phoneField || !nameField) return setError("Campaign lacks name/phone fields.");
-      
-      const data = leadSource.map(l => ({ Name: findAnswerByField(l.answers, nameField), Phone: sanitizePhoneDigits(findAnswerByField(l.answers, phoneField)) })).filter(d => d.Phone);
+      const recipients = buildPhoneRecipients(leadSource);
+      if (!recipients) return setError("Campaign lacks name/phone fields.");
+
+      const data = recipients.map((item) => ({ Name: item.name, Phone: item.phone }));
       const ws = XLSX.utils.json_to_sheet(data);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Leads");
@@ -130,6 +155,103 @@ export default function LeadsPageClient() {
       if (json.data?.draftId) router.push(`/dashboard/email-promotions?draftId=${json.data.draftId}`);
       else throw new Error(json.error || "Failed to create draft");
     } catch (err) { setError(err.message); } finally { setEmailSending(false); }
+  }
+
+  async function handleSendToWpSystem() {
+    if (!selectedLeadIds.length) return setError("Select leads first.");
+    setWpSending(true);
+    setError("");
+    try {
+      const leadSource = leads.filter((lead) => selectedLeadSet.has(String(lead._id)));
+      const recipients = buildPhoneRecipients(leadSource);
+      if (!recipients) throw new Error("Campaign lacks name/phone fields.");
+      if (!recipients.length) throw new Error("No valid phone numbers found in selected leads.");
+
+      const res = await fetch("/api/wp-promotions/draft/from-recipients", {
+        method: "POST",
+        headers: getCustomerHeaders(),
+        body: JSON.stringify({ recipients }),
+      });
+      const json = await res.json();
+      if (json.data?.draftId) router.push(`/dashboard/wp-promotions?draftId=${json.data.draftId}`);
+      else throw new Error(json.error || "Failed to create WP draft");
+    } catch (err) {
+      setError(err.message || "Failed to send recipients to WP system");
+    } finally {
+      setWpSending(false);
+    }
+  }
+
+  async function handleDeleteLeads(leadIds) {
+    const normalizedLeadIds = Array.isArray(leadIds) ? leadIds.map(String).filter(Boolean) : [];
+    if (!selectedCampaignId || !normalizedLeadIds.length) return;
+
+    const confirmText =
+      normalizedLeadIds.length === 1
+        ? "Delete this lead?"
+        : `Delete ${normalizedLeadIds.length} selected leads?`;
+    const confirmed = window.confirm(confirmText);
+    if (!confirmed) return;
+
+    setError("");
+    if (normalizedLeadIds.length === 1) setDeletingLeadId(normalizedLeadIds[0]);
+    else setDeletingSelected(true);
+
+    try {
+      const response = await fetch(`/api/campaigns/${selectedCampaignId}/leads`, {
+        method: "DELETE",
+        headers: getCustomerHeaders(),
+        body: JSON.stringify({ leadIds: normalizedLeadIds }),
+      });
+      const json = await response.json();
+      if (!response.ok) throw new Error(json?.error || "Failed to delete leads");
+
+      setLeads((prev) => prev.filter((lead) => !normalizedLeadIds.includes(String(lead._id))));
+      setSelectedLeadIds((prev) => prev.filter((id) => !normalizedLeadIds.includes(String(id))));
+      setCount((prev) => Math.max(0, Number(prev || 0) - normalizedLeadIds.length));
+    } catch (err) {
+      setError(err.message || "Failed to delete leads");
+    } finally {
+      setDeletingLeadId("");
+      setDeletingSelected(false);
+    }
+  }
+
+  async function handleDeleteCampaign(campaignId) {
+    const id = String(campaignId || "");
+    if (!id) return;
+    const confirmed = window.confirm("Delete this campaign and its tab?");
+    if (!confirmed) return;
+
+    setDeletingCampaignId(id);
+    setError("");
+    try {
+      const response = await fetch(`/api/campaigns/${id}`, {
+        method: "DELETE",
+        headers: getCustomerHeaders(),
+      });
+      const json = await response.json();
+      if (!response.ok) throw new Error(json?.error || "Failed to delete campaign");
+
+      setCampaigns((prev) => {
+        const next = prev.filter((campaign) => String(campaign._id) !== id);
+        if (String(selectedCampaignId) === id) {
+          const fallbackId = next.length ? String(next[0]._id) : "";
+          setSelectedCampaignId(fallbackId);
+          router.replace(fallbackId ? `/dashboard/leads?campaignId=${fallbackId}` : "/dashboard/leads");
+          if (!fallbackId) {
+            setLeads([]);
+            setCount(0);
+            setSelectedLeadIds([]);
+          }
+        }
+        return next;
+      });
+    } catch (err) {
+      setError(err.message || "Failed to delete campaign");
+    } finally {
+      setDeletingCampaignId("");
+    }
   }
 
   const columns = useMemo(() => {
@@ -182,29 +304,55 @@ export default function LeadsPageClient() {
         <div className="flex flex-wrap items-center justify-between gap-6 border-b border-slate-200 pb-2">
           <div className="flex gap-2 overflow-x-auto pb-1">
             {campaigns.map((c) => (
-              <button
-                key={c._id}
-                onClick={() => setSelectedCampaignId(String(c._id))}
-                className={`relative whitespace-nowrap px-4 py-2 text-sm font-bold transition-all ${
-                  selectedCampaignId === String(c._id) ? "text-indigo-600" : "text-slate-500 hover:text-slate-700"
-                }`}
-              >
-                {c.name}
-                {selectedCampaignId === String(c._id) && (
-                  <motion.div layoutId="campaignTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600" />
-                )}
-              </button>
+              <div key={c._id} className="group relative">
+                <button
+                  onClick={() => setSelectedCampaignId(String(c._id))}
+                  className={`relative whitespace-nowrap px-4 py-2 pr-10 text-sm font-bold transition-all ${
+                    selectedCampaignId === String(c._id) ? "text-indigo-600" : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  {c.name}
+                  {selectedCampaignId === String(c._id) && (
+                    <motion.div layoutId="campaignTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600" />
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    handleDeleteCampaign(c._id);
+                  }}
+                  disabled={deletingCampaignId === String(c._id)}
+                  className="absolute right-1 top-1/2 -translate-y-1/2 rounded-md border border-rose-200 bg-rose-50 px-1.5 py-0.5 text-xs font-bold text-rose-700 transition hover:bg-rose-100 disabled:opacity-60"
+                >
+                  {deletingCampaignId === String(c._id) ? "..." : "x"}
+                </button>
+              </div>
             ))}
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <button onClick={() => handleExport("phone")} className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors">Export Phone</button>
-            <button onClick={() => handleExport("email")} className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors">Export Email</button>
+            <button onClick={() => handleExport("phone")} className="rounded-xl border border-slate-900 bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-slate-800 transition-colors">Export Phone</button>
+            <button onClick={() => handleExport("email")} className="rounded-xl border border-slate-900 bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-slate-800 transition-colors">Export Email</button>
+            <button
+              onClick={() => handleDeleteLeads(selectedLeadIds)}
+              disabled={!selectedLeadIds.length || deletingSelected || Boolean(deletingLeadId)}
+              className="min-w-[140px] rounded-xl !border-rose-900 !bg-rose-700 px-4 py-2 text-xs font-bold !text-white shadow-md hover:!bg-rose-800 transition-colors disabled:opacity-50"
+            >
+              {deletingSelected ? "Deleting..." : "Delete Selected"}
+            </button>
             <button 
               onClick={handleSendToPromotions} disabled={emailSending}
-              className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 transition-colors disabled:opacity-50"
+              className="min-w-[150px] rounded-xl !border-indigo-900 !bg-indigo-700 px-4 py-2 text-xs font-bold !text-white shadow-md hover:!bg-indigo-800 transition-colors disabled:opacity-50"
             >
               {emailSending ? "Opening..." : "Send to Promotions"}
+            </button>
+            <button
+              onClick={handleSendToWpSystem}
+              disabled={wpSending}
+              className="min-w-[160px] rounded-xl !border-emerald-900 !bg-emerald-700 px-4 py-2 text-xs font-bold !text-white shadow-md hover:!bg-emerald-800 transition-colors disabled:opacity-50"
+            >
+              {wpSending ? "Opening..." : "Send to WP System"}
             </button>
           </div>
         </div>
@@ -229,13 +377,14 @@ export default function LeadsPageClient() {
                     {columns.map((c) => (
                       <th key={c} className="px-6 py-4 font-bold text-slate-500 uppercase tracking-wider text-[10px]">{c}</th>
                     ))}
+                    <th className="px-6 py-4 text-right font-bold text-slate-500 uppercase tracking-wider text-[10px]">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
                   {loadingLeads ? (
-                    <tr><td colSpan={columns.length + 2} className="px-6 py-12 text-center text-slate-400">Loading leads...</td></tr>
+                    <tr><td colSpan={columns.length + 3} className="px-6 py-12 text-center text-slate-400">Loading leads...</td></tr>
                   ) : leads.length === 0 ? (
-                    <tr><td colSpan={columns.length + 2} className="px-6 py-12 text-center text-slate-400">No leads found for this campaign.</td></tr>
+                    <tr><td colSpan={columns.length + 3} className="px-6 py-12 text-center text-slate-400">No leads found for this campaign.</td></tr>
                   ) : (
                     leads.map((l) => (
                       <tr key={l._id} className="hover:bg-slate-50/50 transition-colors">
@@ -256,6 +405,16 @@ export default function LeadsPageClient() {
                             </td>
                           );
                         })}
+                        <td className="px-6 py-4 text-right">
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteLeads([l._id])}
+                            disabled={deletingSelected || deletingLeadId === String(l._id)}
+                            className="rounded-lg border border-rose-700 bg-rose-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-rose-700 disabled:opacity-50"
+                          >
+                            {deletingLeadId === String(l._id) ? "..." : "Delete"}
+                          </button>
+                        </td>
                       </tr>
                     ))
                   )}

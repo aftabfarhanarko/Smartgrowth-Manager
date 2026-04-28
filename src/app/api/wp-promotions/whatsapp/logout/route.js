@@ -1,15 +1,28 @@
+import { NextResponse } from "next/server";
 import { logoutWaClient } from "@/lib/wp/waClient";
-import { apiOk, apiError } from "@/lib/http";
-import { assertTenantContext } from "@/lib/auth-context";
 
 export async function POST(request) {
-  const auth = assertTenantContext(request);
-  if (auth.error) return apiError(auth.error, auth.status);
-  
   try {
-    const res = await logoutWaClient(auth.context.companyId);
-    return apiOk(res);
+    const { searchParams } = new URL(request.url);
+    const clientKey = searchParams.get("key") || "default";
+    
+    const result = await logoutWaClient(clientKey);
+    return NextResponse.json(result);
   } catch (error) {
-    return apiError(error.message, 500);
+    console.error("[WA-LOGOUT-API] Error:", error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+// Support GET for easy manual trigger if needed
+export async function GET(request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const clientKey = searchParams.get("key") || "default";
+    
+    const result = await logoutWaClient(clientKey);
+    return NextResponse.json(result);
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

@@ -16,8 +16,6 @@ const WhatsAppStatusSchema = new mongoose.Schema({
 });
 const WhatsAppStatus = mongoose.models.WhatsAppStatus || mongoose.model("WhatsAppStatus", WhatsAppStatusSchema);
 
-console.log(`[WA-SYSTEM-BOOT] Client file loaded at ${new Date().toISOString()}`);
-
 const WA_CLIENT_ID_BASE = process.env.WA_WEB_CLIENT_ID || "default";
 const WA_CHROME_EXECUTABLE_PATH = process.env.WA_CHROME_EXECUTABLE_PATH || "";
 
@@ -76,15 +74,40 @@ function getInitState(state) {
 }
 
 async function getPuppeteerConfig() {
+  const isLocal = process.platform === 'darwin' || process.platform === 'win32';
+  
+  // If we are on a desktop OS, ALWAYS use local Chrome to avoid Browserless 401/429
+  if (isLocal) {
+    console.log(`[WA-CONFIG-LOG] Desktop OS detected (${process.platform}). Forcing Local Browser.`);
+    const macChromePaths = [
+      "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+      "/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome",
+    ];
+    const fs = await import("fs");
+    let localPath = WA_CHROME_EXECUTABLE_PATH || undefined;
+    if (!localPath && process.platform === "darwin") {
+      for (const p of macChromePaths) {
+        if (fs.existsSync(p)) {
+          localPath = p;
+          break;
+        }
+      }
+    }
+    const config = {
+      headless: true,
+      executablePath: localPath,
+      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
+    };
+    return config;
+  }
+
+  // From here on, we assume it's a server environment (Linux/Vercel)
   const browserlessKey = process.env.BROWSERLESS_API_KEY;
   const isVercelRuntime = getIsVercelRuntime();
-  const isLocal = process.platform === 'darwin' || process.platform === 'win32';
+  
+  console.log(`[WA] getPuppeteerConfig (Server) - isVercelRuntime: ${isVercelRuntime}, browserlessKey: ${!!browserlessKey}`);
 
-  console.log(`[WA] getPuppeteerConfig - isVercelRuntime: ${isVercelRuntime}, isLocal: ${isLocal}, browserlessKey: ${!!browserlessKey}`);
-
-  // 1. Production/Vercel: ONLY use Browserless
-  // FORCE local Chrome on Mac/Win even if isVercelRuntime is true (to avoid 401/429 locally)
-  if (isVercelRuntime && !isLocal) {
+  if (isVercelRuntime) {
     console.log("[WA] Selected Mode: Remote Browser (Browserless)");
     if (!browserlessKey) throw new Error("BROWSERLESS_API_KEY is missing in Vercel environment.");
     return {
@@ -92,30 +115,11 @@ async function getPuppeteerConfig() {
     };
   }
 
-  // 2. Local Development (or local simulation of Vercel)
-  console.log("[WA] Selected Mode: Local Browser (Chrome)");
-  const macChromePaths = [
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-    "/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome",
-  ];
-  const fs = await import("fs");
-  let localPath = WA_CHROME_EXECUTABLE_PATH || undefined;
-  if (!localPath && process.platform === "darwin") {
-    for (const p of macChromePaths) {
-      if (fs.existsSync(p)) {
-        localPath = p;
-        break;
-      }
-    }
-  }
-  const config = {
+  // Fallback for other Linux environments
+  return {
     headless: true,
-    executablePath: localPath,
     args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
   };
-
-  console.log(`[WA-CONFIG-LOG] Selected Mode: Local Browser, Config:`, JSON.stringify(config));
-  return config;
 }
 
 export async function ensureWaClient(rawKey, force = false) {
@@ -140,6 +144,7 @@ export async function ensureWaClient(rawKey, force = false) {
 
   const clientId = `${WA_CLIENT_ID_BASE}-${clientKey}`;
   const isVercelRuntime = getIsVercelRuntime();
+  const isLocal = process.platform === 'darwin' || process.platform === 'win32';
 
   // THROTTLE: Don't initialize too often on Vercel unless it's a FORCE request (like sending a message)
   if (isVercelRuntime && !force) {
@@ -154,6 +159,15 @@ export async function ensureWaClient(rawKey, force = false) {
       }
       return null;
     }
+  }
+
+  // Force local-only mode: Stop here if on Vercel/Production
+  if (isVercelRuntime && !isLocal) {
+    const errMsg = "WhatsApp initialization is disabled in Production (Vercel). Please use Local Development mode for this feature.";
+    console.warn(`[WA] ${errMsg}`);
+    state.connected = false;
+    state.lastError = errMsg;
+    return null; // Don't even start the initPromise
   }
 
   state.initPromise = (async () => {
@@ -184,8 +198,6 @@ export async function ensureWaClient(rawKey, force = false) {
       if (process.env.VERCEL || process.env.VERCEL_ENV || currentPath.includes('/vercel') || currentPath.includes('/var/task')) {
         remoteDataPath = "/tmp/wa_session_v3";
       }
-      
-      console.log(`[WA-DEBUG] Final Storage Path: ${remoteDataPath}`);
 
       // Fallback: If not explicitly Vercel but directory is not writable, use /tmp
       if (!remoteDataPath.startsWith("/tmp")) {
@@ -369,8 +381,12 @@ export async function ensureWaClient(rawKey, force = false) {
         throw new Error(`Browser Limit Reached (429): Too many concurrent sessions or requests. Please wait a few minutes or check your Browserless dashboard.`);
       }
 
+      if (errMsg.includes("already running")) {
+        throw new Error(`WhatsApp Session Locked: The browser is already running. Please Logout first or wait a few seconds.`);
+      }
+
       if (errMsg.includes("401")) {
-        throw new Error(`Auth Failed (401): ${errMsg}. If this is Browserless, check your key. If local, check Chrome version.`);
+        throw new Error(`WhatsApp Auth Failed (401): ${errMsg}. Please ensure you are logged in correctly.`);
       }
       
       throw new Error(`WhatsApp Init Failed: ${errMsg}`);
@@ -410,6 +426,39 @@ export async function getWaStatus(rawKey) {
     state.lastError = e?.message || "WhatsApp initialization failed";
   }
   return getInitState(state);
+}
+
+export async function logoutWaClient(rawKey) {
+  const { clientKey, state } = getOrCreateState(rawKey);
+  const clientId = `${WA_CLIENT_ID_BASE}-${clientKey}`;
+  
+  console.log(`[WA] Logging out client: ${clientKey}`);
+  
+  // 1. Destroy client if exists
+  if (state.client) {
+    try {
+      await state.client.destroy();
+    } catch (e) {
+      console.error(`[WA] Error destroying client during logout:`, e.message);
+    }
+  }
+  
+  // 2. Clear state
+  state.client = null;
+  state.connected = false;
+  state.initPromise = null;
+  state.lastQrDataUrl = "";
+  state.lastError = "";
+  
+  // 3. Update DB status
+  await connectDB();
+  await WhatsAppStatus.findOneAndUpdate(
+    { clientId },
+    { connected: false, lastQrDataUrl: "", updatedAt: new Date() },
+    { upsert: true }
+  );
+
+  return { success: true, message: "Logged out successfully. You can now re-initialize or scan again." };
 }
 
 // Helper to check if client is truly ready to send
@@ -545,27 +594,4 @@ export async function sendWhatsAppMessage({ phone, message, clientKey }) {
   }
 
   return { queued: false, sent: false, error: lastErr?.message || "Failed to send message" };
-}
-
-export async function logoutWaClient(rawKey) {
-  const { clientKey, state } = getOrCreateState(rawKey);
-  
-  console.log(`[WA] Logging out client for ${clientKey}...`);
-  
-  if (state.client) {
-    try {
-      await state.client.destroy();
-    } catch (e) {
-      console.error(`[WA] Error destroying client during logout:`, e.message);
-    }
-  }
-
-  // Reset state
-  state.client = null;
-  state.initPromise = null;
-  state.connected = false;
-  state.lastQrDataUrl = "";
-  state.lastError = "";
-  
-  return { success: true };
 }

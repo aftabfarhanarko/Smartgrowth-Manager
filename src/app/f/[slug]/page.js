@@ -222,12 +222,6 @@ export default function PublicFormPage() {
 
     setMessage(thankYouText);
     setSubmitting(false);
-
-    if (redirectUrl) {
-      setTimeout(() => {
-        window.location.href = redirectUrl;
-      }, 1500);
-    }
   }
 
   return (
@@ -284,19 +278,21 @@ export default function PublicFormPage() {
                 </p>
               )}
               {message && redirectUrl ? (
-                <p className="text-sm text-zinc-500">
-                  Continue করতে{" "}
+                <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+                  <p className="text-sm font-semibold text-zinc-700">
+                    Submit সফল হয়েছে। নিচের লিংকে click করলে continue করতে পারবেন।
+                  </p>
                   <a
                     href={redirectUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="font-bold underline"
-                    style={{ color: brandColor }}
+                    className="mt-3 inline-flex items-center rounded-lg px-4 py-2 text-sm font-bold text-white transition-opacity hover:opacity-90"
+                    style={{ backgroundColor: brandColor }}
                   >
-                    এখানে click করুন
+                    Open Continue Link
                   </a>
-                  ।
-                </p>
+                  <p className="mt-2 break-all text-xs text-zinc-500">{redirectUrl}</p>
+                </div>
               ) : null}
               {error && <p className="rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}
 
