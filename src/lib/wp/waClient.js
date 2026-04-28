@@ -175,18 +175,17 @@ export async function ensureWaClient(rawKey, force = false) {
       
       const fs = await import("fs");
       const currentPath = process.cwd();
-      let remoteDataPath = path.join(currentPath, ".wwebjs_auth");
+      let remoteDataPath = path.join(currentPath, ".wwebjs_auth_local");
 
       // Aggressively force /tmp if we see Vercel-like paths or environment
-      const isVercelCheck = !!(process.env.VERCEL || process.env.VERCEL_ENV || currentPath.includes('/vercel') || currentPath.includes('/var/task'));
-      
-      if (isVercelCheck) {
-        console.log(`[WA-VERCEL-DETECTED] Path: ${currentPath}, Storage: /tmp/wwebjs_auth_v2`);
-        remoteDataPath = "/tmp/wwebjs_auth_v2";
+      if (process.env.VERCEL || process.env.VERCEL_ENV || currentPath.includes('/vercel') || currentPath.includes('/var/task')) {
+        remoteDataPath = "/tmp/wa_session_v3";
       }
+      
+      console.log(`[WA-DEBUG] Final Storage Path: ${remoteDataPath}`);
 
       // Fallback: If not explicitly Vercel but directory is not writable, use /tmp
-      if (remoteDataPath !== "/tmp/.wwebjs_auth") {
+      if (!remoteDataPath.startsWith("/tmp")) {
         try {
           const testDir = path.join(process.cwd(), ".wwebjs_write_test");
           if (!fs.existsSync(testDir)) fs.mkdirSync(testDir, { recursive: true });
