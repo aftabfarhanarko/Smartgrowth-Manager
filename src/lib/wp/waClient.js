@@ -21,7 +21,7 @@ const WA_CHROME_EXECUTABLE_PATH = process.env.WA_CHROME_EXECUTABLE_PATH || "";
 
 const isVercel = !!(
   process.env.VERCEL === "1" ||
-  process.env.VERCEL ||
+  process.env.VERCEL === "true" ||
   process.env.VERCEL_ENV ||
   process.env.NOW_BUILDER ||
   (typeof process.cwd === 'function' && (process.cwd().includes('/vercel') || process.cwd().includes('/var/task')))
@@ -29,11 +29,15 @@ const isVercel = !!(
 
 function getIsVercelRuntime() {
   const isLocal = process.platform === 'darwin' || process.platform === 'win32';
+  // Force local if we are on a desktop OS and VERCEL is not explicitly set to a truthy value
+  if (isLocal && !process.env.VERCEL && !process.env.VERCEL_ENV) return false;
+  
   return !isLocal || !!(isVercel || process.env.VERCEL || (typeof process.cwd === 'function' && (process.cwd().includes('/vercel') || process.cwd().includes('/var/task'))));
 }
 
-console.log(`[WA] Global check - BROWSERLESS_API_KEY exists: ${!!process.env.BROWSERLESS_API_KEY}`);
-console.log(`[WA] Environment check - isVercel: ${isVercel}`);
+console.log(`[WA] Environment check - isLocal: ${process.platform === 'darwin' || process.platform === 'win32'}, isVercel: ${isVercel}, platform: ${process.platform}`);
+console.log(`[WA] Final check - getIsVercelRuntime(): ${getIsVercelRuntime()}`);
+console.log(`[WA] BROWSERLESS_API_KEY exists: ${!!process.env.BROWSERLESS_API_KEY}`);
 
 function getClientKey(rawKey) {
   const key = String(rawKey || "default").trim();
@@ -342,6 +346,10 @@ export async function ensureWaClient(rawKey, force = false) {
       // If session is corrupt, this might be why it fails. Suggest logout or clear.
       if (errMsg.includes("Session") || errMsg.includes("auth")) {
         throw new Error(`WhatsApp Session Error: ${errMsg}. Please Logout and Login again.`);
+      }
+
+      if (errMsg.includes("429")) {
+        throw new Error(`Browser Limit Reached (429): Too many concurrent sessions or requests. Please wait a few minutes or check your Browserless dashboard.`);
       }
       
       throw new Error(`WhatsApp Init Failed: ${errMsg}`);
