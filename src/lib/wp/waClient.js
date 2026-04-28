@@ -28,13 +28,11 @@ const isVercel = !!(
 );
 
 function getIsVercelRuntime() {
-  const isLocal = process.platform === 'darwin' || process.platform === 'win32';
-  // If we are on a desktop OS, but the path or env suggests Vercel, respect that unless it's explicitly local
-  if (isLocal && !isVercel && !process.env.VERCEL && !process.env.VERCEL_ENV) {
-    return false;
-  }
+  // Check if we are running in a Vercel-like environment (real or simulated)
+  const isVercelPath = typeof process.cwd === 'function' && (process.cwd().includes('/vercel') || process.cwd().includes('/var/task'));
+  const hasVercelEnv = !!(process.env.VERCEL || process.env.VERCEL_ENV || process.env.NOW_BUILDER);
   
-  return !isLocal || !!(isVercel || process.env.VERCEL || process.env.VERCEL_ENV);
+  return isVercelPath || hasVercelEnv;
 }
 
 console.log(`[WA] Environment check - isLocal: ${process.platform === 'darwin' || process.platform === 'win32'}, isVercel: ${isVercel}, platform: ${process.platform}`);
@@ -80,9 +78,12 @@ async function getPuppeteerConfig() {
   const isVercelRuntime = getIsVercelRuntime();
   const isLocal = process.platform === 'darwin' || process.platform === 'win32';
 
+  console.log(`[WA] getPuppeteerConfig - isVercelRuntime: ${isVercelRuntime}, isLocal: ${isLocal}, browserlessKey: ${!!browserlessKey}`);
+
   // 1. Production/Vercel: ONLY use Browserless
   // But if we are on a Local machine (Mac/Win), we should prefer local Chrome to avoid Browserless limits/429
   if (isVercelRuntime && !isLocal) {
+    console.log("[WA] Selected Mode: Remote Browser (Browserless)");
     if (!browserlessKey) throw new Error("BROWSERLESS_API_KEY is missing in Vercel environment.");
     return {
       browserWSEndpoint: `wss://chrome.browserless.io/?token=${browserlessKey}&timeout=60000`,
@@ -90,7 +91,7 @@ async function getPuppeteerConfig() {
   }
 
   // 2. Local Development (or local simulation of Vercel)
-  console.log("[WA] Mode: Local Browser");
+  console.log("[WA] Selected Mode: Local Browser (Chrome)");
   const macChromePaths = [
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
     "/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome",
@@ -171,7 +172,6 @@ export async function ensureWaClient(rawKey, force = false) {
       await connectDB();
       
       const fs = await import("fs");
-      const isVercelRuntime = getIsVercelRuntime();
       let remoteDataPath = isVercelRuntime ? "/tmp/.wwebjs_auth" : path.join(process.cwd(), ".wwebjs_auth");
 
       // Fallback: If not explicitly Vercel but directory is not writable, use /tmp
@@ -354,6 +354,10 @@ export async function ensureWaClient(rawKey, force = false) {
 
       if (errMsg.includes("429")) {
         throw new Error(`Browser Limit Reached (429): Too many concurrent sessions or requests. Please wait a few minutes or check your Browserless dashboard.`);
+      }
+
+      if (errMsg.includes("401")) {
+        throw new Error(`Browserless Auth Failed (401): Your API key seems invalid or expired. Please check your BROWSERLESS_API_KEY in .env.local.`);
       }
       
       throw new Error(`WhatsApp Init Failed: ${errMsg}`);
