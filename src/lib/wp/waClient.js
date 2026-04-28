@@ -16,6 +16,8 @@ const WhatsAppStatusSchema = new mongoose.Schema({
 });
 const WhatsAppStatus = mongoose.models.WhatsAppStatus || mongoose.model("WhatsAppStatus", WhatsAppStatusSchema);
 
+console.log(`[WA-SYSTEM-BOOT] Client file loaded at ${new Date().toISOString()}`);
+
 const WA_CLIENT_ID_BASE = process.env.WA_WEB_CLIENT_ID || "default";
 const WA_CHROME_EXECUTABLE_PATH = process.env.WA_CHROME_EXECUTABLE_PATH || "";
 
@@ -175,10 +177,12 @@ export async function ensureWaClient(rawKey, force = false) {
       const currentPath = process.cwd();
       let remoteDataPath = path.join(currentPath, ".wwebjs_auth");
 
-      // Aggressively force /tmp if we see Vercel-like paths
-      if (isVercelRuntime || currentPath.includes('/vercel') || currentPath.includes('/var/task')) {
-        console.log(`[WA] Vercel environment detected via path (${currentPath}), forcing /tmp storage`);
-        remoteDataPath = "/tmp/.wwebjs_auth";
+      // Aggressively force /tmp if we see Vercel-like paths or environment
+      const isVercelCheck = !!(process.env.VERCEL || process.env.VERCEL_ENV || currentPath.includes('/vercel') || currentPath.includes('/var/task'));
+      
+      if (isVercelCheck) {
+        console.log(`[WA-VERCEL-DETECTED] Path: ${currentPath}, Storage: /tmp/wwebjs_auth_v2`);
+        remoteDataPath = "/tmp/wwebjs_auth_v2";
       }
 
       // Fallback: If not explicitly Vercel but directory is not writable, use /tmp
